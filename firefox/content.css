@@ -1,0 +1,250 @@
+/* D365 QuickBar v2 – Content Styles */
+
+:root {
+  --qb-blue:        #0078d4;
+  --qb-blue-dark:   #005a9e;
+  --qb-blue-light:  #deecf9;
+  --qb-red:         #c4262e;
+  --qb-bg:          #f3f2f1;
+  --qb-surface:     #ffffff;
+  --qb-border:      #d0d0d0;
+  --qb-text:        #201f1e;
+  --qb-muted:       #605e5c;
+  --qb-shadow:      0 2px 10px rgba(0,0,0,.18);
+  --qb-r:           4px;
+  --qb-w:           220px;
+  --qb-t:           .15s ease;
+}
+
+/* ─── Pin-Modus Cursor ────────────────────────────────────────────────────── */
+body.d365qb-pin-mode .appBar button.dynamicsButton { cursor: crosshair !important; }
+
+/* ─── Pin-Overlay ─────────────────────────────────────────────────────────── */
+.d365qb-pin-overlay {
+  position: absolute;
+  top: 1px; right: 1px;
+  width: 16px; height: 16px;
+  background: var(--qb-blue);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 9px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity var(--qb-t);
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  pointer-events: none;
+}
+body.d365qb-pin-mode .appBar button.dynamicsButton:hover .d365qb-pin-overlay,
+body.d365qb-pin-mode .d365qb-pin-overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ─── Sidebar ────────────────────────────────────────────────────────────── */
+#d365qb-sidebar {
+  position: fixed;
+  top: 48px; right: 0;
+  width: var(--qb-w);
+  max-height: calc(100vh - 56px);
+  background: var(--qb-surface);
+  border-left: 2px solid var(--qb-blue);
+  box-shadow: -3px 0 12px rgba(0,0,0,.12);
+  z-index: 100000;
+  display: flex; flex-direction: column;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  border-radius: var(--qb-r) 0 0 var(--qb-r);
+  transition: transform var(--qb-t);
+}
+#d365qb-sidebar.d365qb-sidebar-collapsed {
+  transform: translateX(calc(100% - 26px));
+}
+
+/* Header */
+.d365qb-sidebar-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--qb-blue);
+  color: #fff;
+  flex-shrink: 0;
+  border-radius: var(--qb-r) 0 0 0;
+}
+.d365qb-sidebar-title { font-weight: 700; font-size: 13px; }
+.d365qb-sidebar-hbtns { display: flex; gap: 4px; }
+.d365qb-icon-btn {
+  background: none; border: none; color: #fff;
+  cursor: pointer; font-size: 13px; padding: 2px 4px;
+  border-radius: 3px; opacity: .85; transition: opacity var(--qb-t), background var(--qb-t);
+}
+.d365qb-icon-btn:hover { opacity: 1; background: rgba(255,255,255,.2); }
+
+/* Body */
+.d365qb-sidebar-body {
+  flex: 1; overflow-y: auto;
+  padding: 6px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+
+/* Footer */
+.d365qb-sidebar-footer {
+  padding: 6px;
+  border-top: 1px solid var(--qb-border);
+  flex-shrink: 0;
+}
+.d365qb-footer-btn {
+  width: 100%; padding: 6px 10px;
+  background: var(--qb-blue-light); border: 1px solid var(--qb-blue);
+  border-radius: var(--qb-r); color: var(--qb-blue-dark);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: inherit;
+  transition: background var(--qb-t), color var(--qb-t);
+}
+.d365qb-footer-btn:hover { background: var(--qb-blue); color: #fff; }
+
+/* ─── Normal-Modus: Items ─────────────────────────────────────────────────── */
+.d365qb-group-header {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--qb-muted);
+  padding: 8px 4px 3px;
+  border-bottom: 1px solid var(--qb-border);
+  margin-bottom: 2px;
+}
+.d365qb-pinned-item {
+  display: flex; gap: 3px; align-items: stretch;
+}
+.d365qb-pinned-btn {
+  flex: 1; padding: 5px 8px;
+  background: var(--qb-bg); border: 1px solid var(--qb-border);
+  border-radius: var(--qb-r); cursor: pointer; text-align: left;
+  display: flex; flex-direction: column; gap: 1px;
+  font-family: inherit;
+  transition: background var(--qb-t), border-color var(--qb-t);
+}
+.d365qb-pinned-btn:hover { background: var(--qb-blue-light); border-color: var(--qb-blue); }
+.d365qb-pinned-btn:active { background: var(--qb-blue); color: #fff; }
+.d365qb-pinned-label {
+  font-size: 12px; font-weight: 600; color: var(--qb-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block; max-width: 160px;
+}
+.d365qb-pinned-tab {
+  font-size: 10px; color: var(--qb-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block; max-width: 160px;
+}
+.d365qb-remove-btn {
+  width: 22px; flex-shrink: 0;
+  background: none; border: 1px solid transparent;
+  border-radius: var(--qb-r); color: var(--qb-muted);
+  cursor: pointer; font-size: 10px; font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--qb-t);
+}
+.d365qb-remove-btn:hover { background: #fde7e9; border-color: var(--qb-red); color: var(--qb-red); }
+
+/* Empty state */
+.d365qb-empty {
+  padding: 12px 8px; color: var(--qb-muted); font-size: 12px;
+  text-align: center; line-height: 1.6;
+}
+
+/* ─── Edit-Modus: Items ───────────────────────────────────────────────────── */
+.d365qb-edit-item {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 6px;
+  background: var(--qb-bg); border: 1px solid var(--qb-border);
+  border-radius: var(--qb-r);
+  cursor: default;
+  transition: border-color var(--qb-t);
+}
+.d365qb-group-edit { background: #f0f7ff; border-color: var(--qb-blue); }
+
+/* Drag handle */
+.d365qb-drag-handle {
+  cursor: grab; color: var(--qb-muted); font-size: 14px;
+  flex-shrink: 0; user-select: none; line-height: 1;
+}
+.d365qb-drag-handle:active { cursor: grabbing; }
+
+/* Edit info */
+.d365qb-edit-info {
+  flex: 1; overflow: hidden;
+  display: flex; flex-direction: column; gap: 1px;
+}
+
+/* Group input */
+.d365qb-group-input {
+  flex: 1; border: none; background: transparent;
+  font-family: inherit; font-size: 12px; font-weight: 700;
+  color: var(--qb-blue-dark); padding: 0; outline: none;
+  cursor: text;
+}
+.d365qb-group-input:focus { border-bottom: 1px solid var(--qb-blue); }
+
+/* Dragging states */
+.d365qb-dragging { opacity: .4; }
+.d365qb-drop-above { border-top: 2px solid var(--qb-blue) !important; }
+.d365qb-drop-below { border-bottom: 2px solid var(--qb-blue) !important; }
+
+/* ─── Ribbon-Tab ──────────────────────────────────────────────────────────── */
+.d365qb-ribbon-tab-btn {
+  background: linear-gradient(to bottom, #eaf4ff, var(--qb-blue-light)) !important;
+  font-weight: 700 !important;
+}
+.d365qb-ribbon-tab-btn.d365qb-tab-active,
+.d365qb-ribbon-tab-btn:hover {
+  background: var(--qb-blue) !important;
+  color: #fff !important;
+}
+.d365qb-ribbon-tab-btn.d365qb-tab-active .appBarTab-headerLabel,
+.d365qb-ribbon-tab-btn:hover .appBarTab-headerLabel { color: #fff !important; }
+
+.d365qb-ribbon-tab-content {
+  display: flex; gap: 0; flex-wrap: wrap;
+  background: var(--qb-surface);
+  border-top: 2px solid var(--qb-blue);
+  padding: 4px 8px;
+  box-shadow: 0 3px 6px rgba(0,0,0,.1);
+  z-index: 999;
+}
+.d365qb-ribbon-group { display: flex; flex-direction: column; }
+
+.d365qb-ribbon-item {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; position: relative;
+}
+.d365qb-ribbon-pinned-btn {
+  padding: 3px 8px; min-width: 60px; max-width: 120px;
+  font-family: inherit; text-align: center; cursor: pointer;
+}
+.d365qb-ribbon-badge {
+  display: block; font-size: 9px; color: var(--qb-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100px;
+}
+.d365qb-ribbon-remove {
+  position: absolute; top: -4px; right: -4px;
+  width: 14px; height: 14px;
+  background: var(--qb-red); color: #fff; border: none;
+  border-radius: 50%; font-size: 9px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity var(--qb-t);
+  font-family: inherit;
+}
+.d365qb-ribbon-item:hover .d365qb-ribbon-remove { opacity: 1; }
+
+/* ─── Toast ───────────────────────────────────────────────────────────────── */
+#d365qb-toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: #323130; color: #fff;
+  padding: 9px 16px; border-radius: 4px;
+  font-family: 'Segoe UI', sans-serif; font-size: 13px;
+  box-shadow: var(--qb-shadow); z-index: 999999;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+#d365qb-toast.d365qb-toast-visible { opacity: 1; transform: translateY(0); }
