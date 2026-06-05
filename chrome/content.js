@@ -52,7 +52,7 @@
     pinnedItems  = d[pageKey()]     || [];
     displayMode  = (d[SETTINGS_KEY] || {}).displayMode || 'sidebar';
     renderUI();
-    watchRibbon();
+    watchDom();
   }
 
   // ── Message-Listener ───────────────────────────────────────────────────────
@@ -123,13 +123,36 @@
     });
   }
 
-  // ── Ribbon beobachten (MutationObserver) ───────────────────────────────────
+  // ── DOM & Navigation beobachten ────────────────────────────────────────────
   let _watchTimer = null;
-  function watchRibbon() {
+  let _rebootTimer = null;
+
+  function watchDom() {
+    // SPA-Navigation: D365 wechselt Apps ohne echten Page-Reload
+    // → pushState/popstate abfangen und UI neu aufbauen
+    const scheduleReboot = () => {
+      clearTimeout(_rebootTimer);
+      _rebootTimer = setTimeout(boot, 1500);
+    };
+    try {
+      const origPush = history.pushState.bind(history);
+      history.pushState = (...args) => { origPush(...args); scheduleReboot(); };
+      window.addEventListener('popstate', scheduleReboot);
+    } catch(_) {}
+
     new MutationObserver(() => {
-      if (!pinMode) return;
-      clearTimeout(_watchTimer);
-      _watchTimer = setTimeout(addPinOverlays, 200);
+      // Pin-Overlays nachführen
+      if (pinMode) {
+        clearTimeout(_watchTimer);
+        _watchTimer = setTimeout(addPinOverlays, 200);
+      }
+      // Ribbon-Tab wiederherstellen wenn D365 den AppBar neu gerendert hat
+      if (displayMode === 'ribbon'
+          && !document.getElementById('d365qb-ribbon-btn')
+          && document.querySelector('.appBar-toolbar')) {
+        clearTimeout(_rebootTimer);
+        _rebootTimer = setTimeout(renderUI, 400);
+      }
     }).observe(document.body, {
       childList: true, subtree: true,
       attributes: true, attributeFilter: ['style']
@@ -156,7 +179,7 @@
     //   └── .appBar-flyout  (aktuell offener Tab, SIBLING zu .appBar-toolbar!)
     //       └── .appBarTab-content  →  button.dynamicsButton
     document.querySelectorAll(
-      '.appBar button.dynamicsButton:not([data-qb-overlay])'
+      'button.dynamicsButton:not([data-qb-overlay])'
     ).forEach(btn => {
       if (btn.closest('#d365qb-ribbon-tab')) return;
       if (btn.classList.contains('d365qb-manage')) return;

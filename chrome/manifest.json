@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "D365 QuickBar",
-  "version": "2.2",
+  "version": "2.3",
   "description": "Pinne häufig genutzte Ribbon-Buttons in Dynamics 365 F&O in eine Sidebar oder einen eigenen Ribbon-Tab.",
   "permissions": [
     "storage",
