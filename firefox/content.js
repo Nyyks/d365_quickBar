@@ -120,13 +120,6 @@
           sendResponse({ ok: true });
           return true;
 
-        case 'TRIGGER_IMPORT':
-          // Import läuft im Content Script (nicht im Popup) weil Firefox das Popup
-          // beim Öffnen eines File-Dialogs schliesst → change-Event käme nie an.
-          triggerImport();
-          sendResponse({ ok: true });
-          return true;
-
         default:
           return true;
       }
@@ -613,47 +606,6 @@
         }
       };
       reader.readAsText(file, 'UTF-8');
-    });
-
-    inp.click();
-  }
-
-  // ── Import via Content Script ────────────────────────────────────────────────
-  // Läuft in der Seite, nicht im Popup – damit der File-Dialog nach dem Popup-
-  // Schliessen (Firefox) weiterhin funktioniert und der change-Event ankommt.
-  function triggerImport() {
-    const inp = document.createElement('input');
-    inp.type   = 'file';
-    inp.accept = '.json';
-    inp.style.cssText = 'position:absolute;left:-9999px;width:0;height:0;';
-    document.body.appendChild(inp);
-
-    inp.addEventListener('change', async () => {
-      const file = inp.files?.[0];
-      document.body.removeChild(inp);
-      if (!file) return;
-
-      try {
-        const text = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload  = e => res(e.target.result);
-          r.onerror = () => rej(new Error('Lesefehler'));
-          r.readAsText(file, 'UTF-8');
-        });
-
-        const data = JSON.parse(text);
-        if (!data || !Array.isArray(data.pinnedItems))
-          throw new Error('Ungültiges Format');
-
-        pinnedItems = data.pinnedItems;
-        if (data.displayMode) displayMode = data.displayMode;
-        await stSet({ [pageKey()]: pinnedItems });
-        await stSet({ [SETTINGS_KEY]: { displayMode } });
-        renderUI();
-        toast(`✅ ${pinnedItems.filter(i=>i.type==='button').length} Button(s) importiert`);
-      } catch (e) {
-        toast(`❌ Import fehlgeschlagen: ${e.message}`);
-      }
     });
 
     inp.click();
