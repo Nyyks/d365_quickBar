@@ -103,6 +103,37 @@ body.d365qb-pin-mode .d365qb-pin-overlay {
 }
 .d365qb-footer-btn:hover { background: var(--qb-blue); color: #fff; }
 
+
+/* ─── Expand-Strip (sichtbar wenn Sidebar eingeklappt) ───────────────────── */
+.d365qb-expand-strip {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 26px;
+  background: var(--qb-blue);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: none;          /* Standard: ausgeblendet */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 10;
+  border-radius: var(--qb-r) 0 0 var(--qb-r);
+  box-shadow: -3px 0 8px rgba(0,0,0,.2);
+  transition: background var(--qb-t);
+}
+.d365qb-expand-strip:hover { background: var(--qb-blue-dark); }
+#d365qb-sidebar.d365qb-sidebar-collapsed .d365qb-expand-strip {
+  display: flex;  /* Nur wenn eingeklappt anzeigen */
+}
+.d365qb-expand-icon { font-size: 13px; }
+.d365qb-expand-arrow {
+  font-size: 10px;
+  writing-mode: vertical-lr;
+  opacity: .8;
+}
+
 /* ─── Normal-Modus: Items ─────────────────────────────────────────────────── */
 .d365qb-group-header {
   font-size: 10px; font-weight: 700;
@@ -235,6 +266,39 @@ body.d365qb-pin-mode .d365qb-pin-overlay {
   font-family: inherit;
 }
 .d365qb-ribbon-item:hover .d365qb-ribbon-remove { opacity: 1; }
+
+
+/* ─── Ribbon-Tab: Bearbeitungsmodus ─────────────────────────────────────── */
+.d365qb-ribbon-tab-content.d365qb-ribbon-edit-mode {
+  align-items: flex-start;
+  min-height: 110px;
+}
+.d365qb-ribbon-edit-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  border-right: 1px solid var(--qb-border);
+  padding: 4px 8px 4px 4px;
+  margin-right: 4px;
+  min-width: 260px;
+}
+.d365qb-ribbon-edit-hint {
+  font-size: 10px; color: var(--qb-muted); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em;
+  padding: 2px 4px;
+}
+.d365qb-ribbon-edit-body {
+  display: flex; flex-direction: column; gap: 3px;
+  overflow-y: auto; flex: 1;
+}
+/* Verwaltungsgruppe immer rechts ausrichten */
+.d365qb-ribbon-mgmt {
+  margin-left: auto;
+  border-left: 1px solid var(--qb-border);
+  padding-left: 8px;
+}
 
 /* ─── Toast ───────────────────────────────────────────────────────────────── */
 #d365qb-toast {

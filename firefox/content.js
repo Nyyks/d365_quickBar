@@ -1,103 +1,92 @@
 /**
  * D365 QuickBar v2 – Content Script
- * Korrekte Selektoren basierend auf echtem D365 HTML:
- *   - Toolbar-Buttons: .appBar-toolbar .actionGroup button.dynamicsButton
- *   - Tab-Flyout-Buttons: .appBarTab .appBar-flyout .appBarTab-content button.dynamicsButton
- *   - Offener Tab-Flyout: .appBar > .appBar-flyout .appBarTab-content button.dynamicsButton
+ * Läuft auf *.dynamics.com Seiten als isoliertes Content Script.
+ *
+ * Wichtig: In Content Scripts sind `browser` (Firefox) und `chrome` (Chrome)
+ * direkte Globals – NICHT window.browser / window.chrome!
  */
 (function () {
   'use strict';
 
-  // ─── Browser API ──────────────────────────────────────────────────────────
-  // Firefox Content Scripts: `browser` ist global (NICHT window.browser!)
-  // Chrome Content Scripts: `chrome` ist global
-  // window.browser / window.chrome sind undefined in Content Scripts!
+  // ── Browser-API ────────────────────────────────────────────────────────────
   /* global browser, chrome */
-  const _api = (typeof browser !== 'undefined' && browser && browser.runtime) ? browser
-             : (typeof chrome  !== 'undefined' && chrome  && chrome.runtime)  ? chrome
+  const _api = (typeof browser !== 'undefined' && browser?.runtime) ? browser
+             : (typeof chrome  !== 'undefined' && chrome?.runtime)  ? chrome
              : null;
 
-  if (!_api) {
-    console.error('D365 QuickBar: Keine Browser-Extension-API gefunden.');
-    return;
-  }
+  if (!_api) { console.error('D365 QuickBar: Keine Extension-API.'); return; }
 
-  const isFirefox = _api === (typeof browser !== 'undefined' ? browser : null);
+  const isFF = (_api === (typeof browser !== 'undefined' ? browser : null));
 
-  function storageGet(keys) {
-    if (isFirefox) return _api.storage.local.get(keys);
-    return new Promise(r => _api.storage.local.get(keys, r));
-  }
-  function storageSet(obj) {
-    if (isFirefox) return _api.storage.local.set(obj);
-    return new Promise(r => _api.storage.local.set(obj, r));
-  }
+  // Storage-Wrapper: Firefox gibt Promise zurück, Chrome braucht Callback
+  const stGet = keys => isFF
+    ? _api.storage.local.get(keys)
+    : new Promise(r => _api.storage.local.get(keys, r));
+  const stSet = obj => isFF
+    ? _api.storage.local.set(obj)
+    : new Promise(r => _api.storage.local.set(obj, r));
 
-  // ─── State ────────────────────────────────────────────────────────────────
-  let pinMode    = false;
-  let editMode   = false;
-  let displayMode = 'sidebar';
-  // pinnedItems: [{type:'button', id, label, controlName, tabLabel, buttonId}]
-  //           or [{type:'group',  id, title}]
-  let pinnedItems = [];
+  // ── Zustand ────────────────────────────────────────────────────────────────
+  let pinMode        = false;
+  let editMode       = false;
+  let displayMode    = 'sidebar';
+  let pinnedItems    = [];          // [{type:'button',...} | {type:'group',...}]
+  let ribbonVisible  = false;
 
-  const storageKey  = () => `d365qb_v2_${location.pathname.split('/').slice(0, 4).join('_')}`;
-  const settingsKey = 'd365qb_settings';
+  const pageKey     = () => `d365qb_v2_${location.pathname.split('/').slice(0,4).join('_')}`;
+  const SETTINGS_KEY = 'd365qb_settings';
 
-  // ─── KRITISCH: Listener SOFORT registrieren (vor init-Delay) ─────────────
-  // Firefox findet die Seite nicht, wenn der Listener erst nach 1500ms aktiv ist.
-  listenForMessages();
+  // ── KRITISCH: Listener SOFORT registrieren (vor init-Delay!) ───────────────
+  // Firefox erkennt die Seite nicht wenn der Listener erst nach 1500ms aktiv ist
+  registerListener();
 
-  // Init mit Verzögerung, damit D365 den Ribbon rendern kann
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(init, 1500));
+    document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 1500));
   } else {
-    setTimeout(init, 1500);
+    setTimeout(boot, 1500);
   }
 
-  // ─── Init ─────────────────────────────────────────────────────────────────
-  async function init() {
-    const data = await storageGet([storageKey(), settingsKey]);
-    pinnedItems  = data[storageKey()] || [];
-    const settings = data[settingsKey] || {};
-    displayMode  = settings.displayMode || 'sidebar';
-    pinMode      = false;
-    editMode     = false;
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  async function boot() {
+    const d = await stGet([pageKey(), SETTINGS_KEY]);
+    pinnedItems  = d[pageKey()]     || [];
+    displayMode  = (d[SETTINGS_KEY] || {}).displayMode || 'sidebar';
     renderUI();
-    observeRibbon();
+    watchRibbon();
   }
 
-  function savePins()      { return storageSet({ [storageKey()]: pinnedItems }); }
-  function saveSettings(s) { return storageSet({ [settingsKey]: s }); }
-
-  // ─── Message Listener ─────────────────────────────────────────────────────
-  function listenForMessages() {
+  // ── Message-Listener ───────────────────────────────────────────────────────
+  // Muster: sendResponse(data) + return true
+  // Das funktioniert in Chrome MV3 UND Firefox MV3 gleich.
+  // Für async-Operationen (IMPORT) wird sendResponse nach dem await aufgerufen.
+  function registerListener() {
     _api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+
       switch (msg.type) {
+
         case 'GET_STATE':
           sendResponse({
-            displayMode,
-            pinMode,
+            displayMode, pinMode,
             pinnedCount: pinnedItems.filter(i => i.type === 'button').length
           });
           return true;
 
         case 'SET_DISPLAY_MODE':
           displayMode = msg.mode;
-          saveSettings({ displayMode });
+          stSet({ [SETTINGS_KEY]: { displayMode } });
           renderUI();
           sendResponse({ ok: true });
           return true;
 
         case 'SET_PIN_MODE':
           pinMode = msg.enabled;
-          updatePinMode();
+          applyPinMode();
           sendResponse({ ok: true });
           return true;
 
         case 'CLEAR_PINS':
           pinnedItems = [];
-          savePins();
+          stSet({ [pageKey()]: [] });
           renderUI();
           sendResponse({ ok: true });
           return true;
@@ -107,412 +96,398 @@
           return true;
 
         case 'IMPORT_PINS':
-          try {
-            pinnedItems = Array.isArray(msg.data.pinnedItems) ? msg.data.pinnedItems : [];
-            if (msg.data.displayMode) displayMode = msg.data.displayMode;
-            savePins();
-            saveSettings({ displayMode });
-            renderUI();
-            sendResponse({ ok: true });
-          } catch (e) {
-            sendResponse({ ok: false, error: e.message });
-          }
+          ;(async () => {
+            try {
+              const data = msg.data;
+              if (!data || !Array.isArray(data.pinnedItems)) {
+                return sendResponse({ ok: false, error: 'Ungültiges Format' });
+              }
+              pinnedItems = data.pinnedItems;
+              if (data.displayMode) displayMode = data.displayMode;
+              await stSet({ [pageKey()]: pinnedItems });
+              await stSet({ [SETTINGS_KEY]: { displayMode } });
+              renderUI();
+              sendResponse({ ok: true });
+            } catch (e) {
+              sendResponse({ ok: false, error: e.message });
+            }
+          })();
+          return true;
+
+        case 'TRIGGER_IMPORT':
+          // Import direkt in der D365-Seite ausführen (umgeht Firefox-Popup-Fokus-Problem)
+          triggerPageImport();
+          sendResponse({ ok: true });
+          return true;
+
+        case 'TRIGGER_IMPORT':
+          // Import läuft im Content Script (nicht im Popup) weil Firefox das Popup
+          // beim Öffnen eines File-Dialogs schliesst → change-Event käme nie an.
+          triggerImport();
+          sendResponse({ ok: true });
+          return true;
+
+        default:
           return true;
       }
-      return true; // Immer true zurückgeben (Firefox-Pflicht)
     });
   }
 
-  // ─── Ribbon Observation ───────────────────────────────────────────────────
-  let _overlayTimer = null;
-  function observeRibbon() {
-    const observer = new MutationObserver(() => {
+  // ── Ribbon beobachten (MutationObserver) ───────────────────────────────────
+  let _watchTimer = null;
+  function watchRibbon() {
+    new MutationObserver(() => {
       if (!pinMode) return;
-      clearTimeout(_overlayTimer);
-      _overlayTimer = setTimeout(attachPinOverlays, 200);
+      clearTimeout(_watchTimer);
+      _watchTimer = setTimeout(addPinOverlays, 200);
+    }).observe(document.body, {
+      childList: true, subtree: true,
+      attributes: true, attributeFilter: ['style']
     });
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
   }
 
-  // ─── Pin-Modus ────────────────────────────────────────────────────────────
-  function updatePinMode() {
-    if (pinMode) {
-      document.body.classList.add('d365qb-pin-mode');
-      attachPinOverlays();
-    } else {
-      document.body.classList.remove('d365qb-pin-mode');
-      removePinOverlays();
-    }
-    // Sidebar-Button aktualisieren
+  // ── Pin-Modus ──────────────────────────────────────────────────────────────
+  function applyPinMode() {
+    document.body.classList.toggle('d365qb-pin-mode', pinMode);
+    if (pinMode) addPinOverlays();
+    else removePinOverlays();
     const btn = document.getElementById('d365qb-sidebar-pinmode');
     if (btn) btn.textContent = pinMode ? '🔴 Pin-Modus aktiv' : '📌 Pin-Modus';
   }
 
-  function attachPinOverlays() {
-    // Echte D365-Struktur (aus HTML-Export):
-    //
-    //  div.appBar
-    //  ├── div.appBar-toolbar
-    //  │   ├── div.actionGroup.appBar-button-group      ← immer sichtbare Buttons (Neu, Löschen, ...)
-    //  │   │   └── button.dynamicsButton                ← ANPINNBAR
-    //  │   ├── div.appBarTab                            ← Tab-Eintrag ("Arbeit", "Person", ...)
-    //  │   │   ├── button.appBarTab-header              ← Tab-Klick-Button (NICHT anpinnbar)
-    //  │   │   └── div.appBar-flyout                    ← Flyout (hidden: display:none !important)
-    //  │   │       └── div.appBarTab-content
-    //  │   │           └── button.dynamicsButton        ← ANPINNBAR
-    //  │   └── div.actionGroup-right                   ← rechte Toolbar-Buttons (Office, Attach, ...)
-    //  │       └── button.dynamicsButton                ← ANPINNBAR
-    //  └── div.appBar-flyout (aktuell geöffneter/angepinnter Tab)  ← SIBLING zu .appBar-toolbar!
-    //      └── div.appBarTab-content
-    //          └── button.dynamicsButton                ← ANPINNBAR
-    //
-    // Selektor: alle button.dynamicsButton innerhalb .appBar, AUSSER eigene QuickBar-Buttons
-
-    document.querySelectorAll('.appBar button.dynamicsButton:not([data-d365qb-overlay])').forEach(btn => {
+  function addPinOverlays() {
+    // D365-Struktur (aus echtem HTML):
+    //   .appBar
+    //   ├── .appBar-toolbar
+    //   │   ├── .actionGroup  →  button.dynamicsButton  (Neu, Löschen, …)
+    //   │   └── .appBarTab
+    //   │       └── .appBar-flyout (hidden)
+    //   │           └── .appBarTab-content  →  button.dynamicsButton
+    //   └── .appBar-flyout  (aktuell offener Tab, SIBLING zu .appBar-toolbar!)
+    //       └── .appBarTab-content  →  button.dynamicsButton
+    document.querySelectorAll(
+      '.appBar button.dynamicsButton:not([data-qb-overlay])'
+    ).forEach(btn => {
       if (btn.closest('#d365qb-ribbon-tab')) return;
-      if (btn.classList.contains('d365qb-manage-btn')) return;
+      if (btn.classList.contains('d365qb-manage')) return;
+      const wrap = btn.querySelector('.button-container');
+      if (!wrap) return;
 
-      // Nur Buttons mit .button-container (echter D365-Ribbon-Button)
-      const container = btn.querySelector('.button-container');
-      if (!container) return;
-
-      btn.setAttribute('data-d365qb-overlay', '1');
-
-      const overlay = document.createElement('div');
-      overlay.className = 'd365qb-pin-overlay';
-      overlay.title = 'In QuickBar anpinnen';
-      overlay.textContent = '📌';
-      overlay.addEventListener('click', e => {
-        e.stopPropagation();
-        e.preventDefault();
-        pinButton(btn);
-      });
-
-      container.style.position = 'relative';
-      container.appendChild(overlay);
+      btn.setAttribute('data-qb-overlay', '1');
+      const pin = document.createElement('div');
+      pin.className = 'd365qb-overlay';
+      pin.title = 'In QuickBar anpinnen';
+      pin.textContent = '📌';
+      pin.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); doPinBtn(btn); });
+      wrap.style.position = 'relative';
+      wrap.appendChild(pin);
     });
   }
 
   function removePinOverlays() {
-    document.querySelectorAll('button[data-d365qb-overlay]').forEach(btn => {
-      btn.removeAttribute('data-d365qb-overlay');
-      btn.querySelectorAll('.d365qb-pin-overlay').forEach(o => o.remove());
+    document.querySelectorAll('[data-qb-overlay]').forEach(btn => {
+      btn.removeAttribute('data-qb-overlay');
+      btn.querySelectorAll('.d365qb-overlay').forEach(o => o.remove());
     });
   }
 
-  // ─── Button anpinnen ──────────────────────────────────────────────────────
-  function pinButton(btn) {
-    // Label: .button-label ist der sichtbare Text
+  // ── Button anpinnen ────────────────────────────────────────────────────────
+  function doPinBtn(btn) {
     const labelEl = btn.querySelector('.button-label');
-    let label = labelEl ? labelEl.textContent.trim() : '';
-    // Fallback: aria-label oder dyn-data-optional-label (für Icon-Only-Buttons)
-    if (!label) label = btn.getAttribute('aria-label') || btn.getAttribute('dyn-data-optional-label') || '';
-    if (!label) label = 'Unbekannt';
+    let label = labelEl?.textContent.trim() || '';
+    if (!label) label = btn.getAttribute('aria-label') || btn.getAttribute('dyn-data-optional-label') || 'Unbekannt';
 
     const controlName = btn.getAttribute('data-dyn-controlname') || btn.getAttribute('name') || btn.id;
     const tabLabel    = getTabLabel(btn);
 
     if (pinnedItems.find(i => i.type === 'button' && i.controlName === controlName)) {
-      showToast(`"${label}" ist bereits angepinnt.`);
-      return;
+      toast(`"${label}" ist bereits angepinnt.`); return;
     }
-
-    pinnedItems.push({ type: 'button', id: `pin_${Date.now()}`, label, controlName, tabLabel, buttonId: btn.id });
-    savePins();
+    pinnedItems.push({ type: 'button', id: `p_${Date.now()}`, label, controlName, tabLabel, buttonId: btn.id });
+    stSet({ [pageKey()]: pinnedItems });
     renderUI();
-    showToast(`📌 "${label}" angepinnt!`);
+    toast(`📌 "${label}" angepinnt!`);
   }
 
-  // ─── Tab-Label ermitteln ──────────────────────────────────────────────────
   function getTabLabel(btn) {
-    // Fall 1: Button in internem Flyout innerhalb .appBarTab
-    const appBarTab = btn.closest('.appBarTab');
-    if (appBarTab) {
-      const el = appBarTab.querySelector(':scope > button.appBarTab-header .appBarTab-headerLabel');
+    // Fall 1: Button in internem Tab-Flyout
+    const tab = btn.closest('.appBarTab');
+    if (tab) {
+      const el = tab.querySelector(':scope > button.appBarTab-header .appBarTab-headerLabel');
       if (el) return el.textContent.trim();
     }
-
-    // Fall 2: Button in externem Flyout (Sibling zu .appBar-toolbar)
-    // Die Flyout-ID ist z.B. "...SystemDefinedOptions_flyout"
+    // Fall 2: Button in externem Flyout (ID endet auf _flyout)
     const flyout = btn.closest('.appBar-flyout');
-    if (flyout && flyout.id) {
-      const tabId = flyout.id.replace(/_flyout$/, '');
-      const tabEl = document.getElementById(tabId);
-      if (tabEl) {
-        const el = tabEl.querySelector('.appBarTab-headerLabel');
-        if (el) return el.textContent.trim();
-      }
+    if (flyout?.id) {
+      const tabEl = document.getElementById(flyout.id.replace(/_flyout$/, ''));
+      const el = tabEl?.querySelector('.appBarTab-headerLabel');
+      if (el) return el.textContent.trim();
     }
-
-    return ''; // Direkter Toolbar-Button (Neu, Löschen, etc.) – kein Tab
+    return '';
   }
 
-  // ─── UI Rendern ───────────────────────────────────────────────────────────
+  // ── UI Rendern ─────────────────────────────────────────────────────────────
   function renderUI() {
-    removeSidebar();
-    removeRibbonTab();
-    if (displayMode === 'sidebar') {
-      renderSidebar(); // Sidebar immer anzeigen (auch leer, damit Pin-Modus zugänglich ist)
-    } else {
-      if (pinnedItems.some(i => i.type === 'button')) renderRibbonTab();
-    }
+    rmSidebar(); rmRibbon();
+    if (displayMode === 'sidebar') mkSidebar();
+    else if (pinnedItems.some(i => i.type === 'button')) mkRibbon();
   }
 
-  // ─── Sidebar ──────────────────────────────────────────────────────────────
-  function removeSidebar() {
+  // ── Sidebar ────────────────────────────────────────────────────────────────
+  function rmSidebar() {
     document.getElementById('d365qb-sidebar')?.remove();
     document.body.classList.remove('d365qb-has-sidebar');
   }
 
-  function renderSidebar() {
-    const sidebar = document.createElement('div');
-    sidebar.id = 'd365qb-sidebar';
-    if (editMode) sidebar.classList.add('d365qb-edit-mode');
+  function mkSidebar() {
+    const sb = document.createElement('div');
+    sb.id = 'd365qb-sidebar';
+    if (editMode) sb.classList.add('d365qb-edit-mode');
 
-    sidebar.innerHTML = `
-      <div class="d365qb-sidebar-header">
-        <span class="d365qb-sidebar-title">⚡ QuickBar</span>
-        <div class="d365qb-sidebar-hbtns">
+    sb.innerHTML = `
+      <button class="d365qb-expand-strip" id="d365qb-expand" title="QuickBar ausklappen">
+        <span>⚡</span><span class="d365qb-expand-arrow">▶</span>
+      </button>
+      <div class="d365qb-hd">
+        <span class="d365qb-hd-title">⚡ QuickBar</span>
+        <div class="d365qb-hd-btns">
           <button class="d365qb-icon-btn" id="d365qb-edit-toggle"
-            title="${editMode ? 'Bearbeitung beenden' : 'Bearbeiten'}">${editMode ? '✓' : '✏️'}</button>
-          <button class="d365qb-icon-btn" id="d365qb-sidebar-collapse" title="Einklappen">◁</button>
+            title="${editMode ? 'Fertig' : 'Bearbeiten'}">${editMode ? '✓' : '✏️'}</button>
+          <button class="d365qb-icon-btn" id="d365qb-collapse" title="Einklappen">◁</button>
         </div>
       </div>
-      <div class="d365qb-sidebar-body" id="d365qb-sidebar-body">
-        ${editMode ? buildEditHTML() : buildNormalHTML()}
+      <div class="d365qb-body" id="d365qb-body">
+        ${editMode ? mkEditHTML() : mkNormalHTML()}
       </div>
-      <div class="d365qb-sidebar-footer">
+      <div class="d365qb-foot">
         ${editMode
-          ? `<button class="d365qb-footer-btn" id="d365qb-add-group">＋ Gruppe hinzufügen</button>`
-          : `<button class="d365qb-footer-btn" id="d365qb-sidebar-pinmode">
-               ${pinMode ? '🔴 Pin-Modus aktiv' : '📌 Pin-Modus'}
-             </button>`
+          ? `<button class="d365qb-foot-btn" id="d365qb-add-group">＋ Gruppe hinzufügen</button>`
+          : `<button class="d365qb-foot-btn" id="d365qb-sidebar-pinmode">${pinMode ? '🔴 Pin-Modus aktiv' : '📌 Pin-Modus'}</button>`
         }
-      </div>
-    `;
-    document.body.appendChild(sidebar);
+      </div>`;
+
+    document.body.appendChild(sb);
     document.body.classList.add('d365qb-has-sidebar');
 
-    // Header-Buttons
-    sidebar.querySelector('#d365qb-edit-toggle').addEventListener('click', () => {
-      editMode = !editMode;
-      renderUI();
-    });
-    sidebar.querySelector('#d365qb-sidebar-collapse').addEventListener('click', () => {
-      const collapsed = sidebar.classList.toggle('d365qb-sidebar-collapsed');
-      sidebar.querySelector('#d365qb-sidebar-collapse').textContent = collapsed ? '▷' : '◁';
+    // Expand-Strip (nur sichtbar wenn eingeklappt)
+    sb.querySelector('#d365qb-expand').addEventListener('click', () => {
+      sb.classList.remove('d365qb-collapsed');
     });
 
-    const body = sidebar.querySelector('#d365qb-sidebar-body');
+    // Einklappen
+    sb.querySelector('#d365qb-collapse').addEventListener('click', () => {
+      sb.classList.toggle('d365qb-collapsed');
+    });
+
+    // Edit-Toggle
+    sb.querySelector('#d365qb-edit-toggle').addEventListener('click', () => {
+      editMode = !editMode; renderUI();
+    });
+
+    const body = sb.querySelector('#d365qb-body');
 
     if (editMode) {
-      sidebar.querySelector('#d365qb-add-group').addEventListener('click', () => {
-        pinnedItems.push({ type: 'group', id: `grp_${Date.now()}`, title: 'Neue Gruppe' });
-        savePins();
-        editMode = true;
-        renderUI();
+      sb.querySelector('#d365qb-add-group').addEventListener('click', () => {
+        pinnedItems.push({ type: 'group', id: `g_${Date.now()}`, title: 'Neue Gruppe' });
+        stSet({ [pageKey()]: pinnedItems });
+        editMode = true; renderUI();
       });
-      setupDragDrop(body);
-      setupGroupEditing(body);
-      setupEditRemove(body);
+      bindDrag(body);
+      bindGroupEdit(body);
+      bindEditRemove(body);
     } else {
-      // Pin-Modus Toggle
-      sidebar.querySelector('#d365qb-sidebar-pinmode').addEventListener('click', () => {
-        pinMode = !pinMode;
-        updatePinMode();
-        sidebar.querySelector('#d365qb-sidebar-pinmode').textContent =
-          pinMode ? '🔴 Pin-Modus aktiv' : '📌 Pin-Modus';
+      sb.querySelector('#d365qb-sidebar-pinmode').addEventListener('click', () => {
+        pinMode = !pinMode; applyPinMode();
       });
-      // Button-Klicks und Entfernen
-      body.querySelectorAll('.d365qb-pinned-item[data-pin-id]').forEach(el => {
-        const pid = el.getAttribute('data-pin-id');
-        el.querySelector('.d365qb-pinned-btn')?.addEventListener('click', () => {
+      body.querySelectorAll('.d365qb-pin-item[data-pid]').forEach(el => {
+        const pid = el.getAttribute('data-pid');
+        el.querySelector('.d365qb-pin-btn')?.addEventListener('click', () => {
           const item = pinnedItems.find(i => i.id === pid);
-          if (item) triggerOriginalButton(item);
+          if (item) fireBtn(item);
         });
-        el.querySelector('.d365qb-remove-btn')?.addEventListener('click', e => {
+        el.querySelector('.d365qb-rm-btn')?.addEventListener('click', e => {
           e.stopPropagation();
           pinnedItems = pinnedItems.filter(i => i.id !== pid);
-          savePins();
+          stSet({ [pageKey()]: pinnedItems });
           renderUI();
         });
       });
     }
   }
 
-  // ─── Sidebar: Normal-Modus HTML ───────────────────────────────────────────
-  function buildNormalHTML() {
-    if (pinnedItems.length === 0) {
-      return `<div class="d365qb-empty">
+  function mkNormalHTML() {
+    if (!pinnedItems.length) return `
+      <div class="d365qb-empty">
         Noch keine Buttons angepinnt.<br><br>
-        Aktiviere den <strong>Pin-Modus</strong> unten, öffne einen Ribbon-Tab in D365 und klicke 📌 auf einem Button.
+        <strong>📌 Pin-Modus</strong> aktivieren, dann Ribbon-Tab öffnen und Button anklicken.
       </div>`;
-    }
-    return pinnedItems.map(item => {
-      if (item.type === 'group') {
-        return `<div class="d365qb-group-header">${esc(item.title)}</div>`;
-      }
-      return `
-        <div class="d365qb-pinned-item" data-pin-id="${item.id}">
-          <button class="d365qb-pinned-btn"
-            title="${item.tabLabel ? esc(item.tabLabel) + ': ' : ''}${esc(item.label)}">
-            <span class="d365qb-pinned-label">${esc(item.label)}</span>
-            ${item.tabLabel ? `<span class="d365qb-pinned-tab">${esc(item.tabLabel)}</span>` : ''}
-          </button>
-          <button class="d365qb-remove-btn" title="Entfernen">✕</button>
-        </div>`;
-    }).join('');
+    return pinnedItems.map(it => it.type === 'group'
+      ? `<div class="d365qb-grp-hd">${x(it.title)}</div>`
+      : `<div class="d365qb-pin-item" data-pid="${it.id}">
+           <button class="d365qb-pin-btn" title="${it.tabLabel ? x(it.tabLabel)+': ' : ''}${x(it.label)}">
+             <span class="d365qb-lbl">${x(it.label)}</span>
+             ${it.tabLabel ? `<span class="d365qb-tab-lbl">${x(it.tabLabel)}</span>` : ''}
+           </button>
+           <button class="d365qb-rm-btn" title="Entfernen">✕</button>
+         </div>`
+    ).join('');
   }
 
-  // ─── Sidebar: Edit-Modus HTML ─────────────────────────────────────────────
-  function buildEditHTML() {
-    if (pinnedItems.length === 0) {
-      return `<div class="d365qb-empty">Noch keine Buttons angepinnt.</div>`;
-    }
-    return pinnedItems.map(item => {
-      if (item.type === 'group') {
-        return `
-          <div class="d365qb-edit-item d365qb-group-edit" draggable="true" data-pin-id="${item.id}">
-            <span class="d365qb-drag-handle">⠿</span>
-            <input class="d365qb-group-input" data-group-id="${item.id}"
-              value="${esc(item.title)}" placeholder="Gruppenname">
-            <button class="d365qb-remove-btn" title="Entfernen">✕</button>
-          </div>`;
-      }
-      return `
-        <div class="d365qb-edit-item d365qb-btn-edit" draggable="true" data-pin-id="${item.id}">
-          <span class="d365qb-drag-handle">⠿</span>
-          <div class="d365qb-edit-info">
-            <span class="d365qb-pinned-label">${esc(item.label)}</span>
-            ${item.tabLabel ? `<span class="d365qb-pinned-tab">${esc(item.tabLabel)}</span>` : ''}
-          </div>
-          <button class="d365qb-remove-btn" title="Entfernen">✕</button>
-        </div>`;
-    }).join('');
+  function mkEditHTML() {
+    if (!pinnedItems.length) return `<div class="d365qb-empty">Noch keine Buttons angepinnt.</div>`;
+    return pinnedItems.map(it => it.type === 'group'
+      ? `<div class="d365qb-edit-item d365qb-grp-edit" draggable="true" data-pid="${it.id}">
+           <span class="d365qb-drag">⠿</span>
+           <input class="d365qb-grp-inp" data-gid="${it.id}" value="${x(it.title)}" placeholder="Gruppenname">
+           <button class="d365qb-rm-btn" title="Entfernen">✕</button>
+         </div>`
+      : `<div class="d365qb-edit-item d365qb-btn-edit" draggable="true" data-pid="${it.id}">
+           <span class="d365qb-drag">⠿</span>
+           <div class="d365qb-edit-info">
+             <span class="d365qb-lbl">${x(it.label)}</span>
+             ${it.tabLabel ? `<span class="d365qb-tab-lbl">${x(it.tabLabel)}</span>` : ''}
+           </div>
+           <button class="d365qb-rm-btn" title="Entfernen">✕</button>
+         </div>`
+    ).join('');
   }
 
-  // ─── Drag & Drop ──────────────────────────────────────────────────────────
-  function setupDragDrop(container) {
+  // ── Drag & Drop ─────────────────────────────────────────────────────────────
+  function bindDrag(container) {
     let srcId = null;
-
     container.querySelectorAll('.d365qb-edit-item').forEach(el => {
       el.addEventListener('dragstart', e => {
-        srcId = el.getAttribute('data-pin-id');
+        srcId = el.dataset.pid;
         e.dataTransfer.effectAllowed = 'move';
         setTimeout(() => el.classList.add('d365qb-dragging'), 0);
       });
       el.addEventListener('dragend', () => {
         srcId = null;
         el.classList.remove('d365qb-dragging');
-        container.querySelectorAll('.d365qb-drop-above,.d365qb-drop-below').forEach(x => {
-          x.classList.remove('d365qb-drop-above', 'd365qb-drop-below');
-        });
+        container.querySelectorAll('.d365qb-drop-a,.d365qb-drop-b').forEach(x => x.classList.remove('d365qb-drop-a','d365qb-drop-b'));
       });
       el.addEventListener('dragover', e => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        container.querySelectorAll('.d365qb-drop-above,.d365qb-drop-below').forEach(x => {
-          x.classList.remove('d365qb-drop-above', 'd365qb-drop-below');
-        });
-        const rect = el.getBoundingClientRect();
-        el.classList.add(e.clientY < rect.top + rect.height / 2 ? 'd365qb-drop-above' : 'd365qb-drop-below');
+        container.querySelectorAll('.d365qb-drop-a,.d365qb-drop-b').forEach(x => x.classList.remove('d365qb-drop-a','d365qb-drop-b'));
+        const above = e.clientY < el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2;
+        el.classList.add(above ? 'd365qb-drop-a' : 'd365qb-drop-b');
       });
-      el.addEventListener('dragleave', () => {
-        el.classList.remove('d365qb-drop-above', 'd365qb-drop-below');
-      });
+      el.addEventListener('dragleave', () => el.classList.remove('d365qb-drop-a','d365qb-drop-b'));
       el.addEventListener('drop', e => {
         e.preventDefault();
-        const tgtId = el.getAttribute('data-pin-id');
-        if (!srcId || srcId === tgtId) return;
+        const tgt = el.dataset.pid;
+        if (!srcId || srcId === tgt) return;
         const above = e.clientY < el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2;
-        const fromIdx = pinnedItems.findIndex(i => i.id === srcId);
-        const [moved] = pinnedItems.splice(fromIdx, 1);
-        const toIdx = pinnedItems.findIndex(i => i.id === tgtId);
-        pinnedItems.splice(above ? toIdx : toIdx + 1, 0, moved);
-        savePins();
-        editMode = true;
-        renderUI();
+        const fi = pinnedItems.findIndex(i => i.id === srcId);
+        const [moved] = pinnedItems.splice(fi, 1);
+        const ti = pinnedItems.findIndex(i => i.id === tgt);
+        pinnedItems.splice(above ? ti : ti + 1, 0, moved);
+        stSet({ [pageKey()]: pinnedItems });
+        editMode = true; renderUI();
       });
     });
   }
 
-  function setupGroupEditing(container) {
-    container.querySelectorAll('.d365qb-group-input').forEach(input => {
-      // Drag nicht beim Tippen
-      input.addEventListener('mousedown', e => e.stopPropagation());
-      input.addEventListener('input', () => {
-        const item = pinnedItems.find(i => i.id === input.getAttribute('data-group-id'));
-        if (item) { item.title = input.value; savePins(); }
+  function bindGroupEdit(container) {
+    container.querySelectorAll('.d365qb-grp-inp').forEach(inp => {
+      inp.addEventListener('mousedown', e => e.stopPropagation());
+      inp.addEventListener('input', () => {
+        const it = pinnedItems.find(i => i.id === inp.dataset.gid);
+        if (it) { it.title = inp.value; stSet({ [pageKey()]: pinnedItems }); }
       });
     });
   }
 
-  function setupEditRemove(container) {
-    container.querySelectorAll('.d365qb-remove-btn').forEach(btn => {
+  function bindEditRemove(container) {
+    container.querySelectorAll('.d365qb-rm-btn').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
-        const el = btn.closest('[data-pin-id]');
+        const el = btn.closest('[data-pid]');
         if (el) {
-          pinnedItems = pinnedItems.filter(i => i.id !== el.getAttribute('data-pin-id'));
-          savePins();
-          editMode = true;
-          renderUI();
+          pinnedItems = pinnedItems.filter(i => i.id !== el.dataset.pid);
+          stSet({ [pageKey()]: pinnedItems });
+          editMode = true; renderUI();
         }
       });
     });
   }
 
-  // ─── Ribbon-Tab ───────────────────────────────────────────────────────────
-  function removeRibbonTab() {
+  // ── Ribbon-Tab ─────────────────────────────────────────────────────────────
+  function rmRibbon() {
     document.getElementById('d365qb-ribbon-tab')?.remove();
-    document.getElementById('d365qb-ribbon-tab-btn')?.remove();
+    document.getElementById('d365qb-ribbon-btn')?.remove();
   }
 
-  function renderRibbonTab() {
+  function mkRibbon() {
     const appBar = document.querySelector('.appBar-toolbar');
     if (!appBar) return;
 
     // Tab-Header-Button
     const tabBtn = document.createElement('button');
-    tabBtn.id        = 'd365qb-ribbon-tab-btn';
-    tabBtn.className = 'appBarTab-header allowFlyoutClickPropagation d365qb-ribbon-tab-btn';
-    tabBtn.type      = 'button';
+    tabBtn.id = 'd365qb-ribbon-btn';
+    tabBtn.className = 'appBarTab-header allowFlyoutClickPropagation d365qb-ribbon-hdr-btn';
+    tabBtn.type = 'button';
     tabBtn.innerHTML = `<span class="appBarTab-headerLabel allowFlyoutClickPropagation">⚡ QuickBar</span>`;
     appBar.insertBefore(tabBtn, appBar.firstChild);
 
     // Tab-Inhalt
-    const tabContent = document.createElement('div');
-    tabContent.id        = 'd365qb-ribbon-tab';
-    tabContent.className = 'appBarTab-content d365qb-ribbon-tab-content';
+    const tc = document.createElement('div');
+    tc.id = 'd365qb-ribbon-tab';
+    tc.className = `appBarTab-content d365qb-ribbon-tc${editMode ? ' d365qb-ribbon-edit' : ''}`;
 
-    // Gruppen aus pinnedItems aufbauen
-    const sections = buildRibbonSections();
-    let html = sections.map(sec => `
-      <div class="group button-group d365qb-ribbon-group">
-        <div class="group_header"><label class="group_title">${esc(sec.title)}</label></div>
-        <div class="group_content layout-container layout-horizontal">
-          ${sec.buttons.map(b => `
-            <div class="d365qb-ribbon-item">
-              <button class="button dynamicsButton d365qb-ribbon-pinned-btn" data-pin-id="${b.id}"
-                title="${b.tabLabel ? esc(b.tabLabel) + ': ' + esc(b.label) : esc(b.label)}">
-                <div class="button-container">
-                  <span class="button-label">${esc(b.label)}</span>
-                  ${b.tabLabel ? `<span class="d365qb-ribbon-badge">${esc(b.tabLabel)}</span>` : ''}
-                </div>
-              </button>
-              <button class="d365qb-ribbon-remove" data-pin-id="${b.id}" title="Entfernen">✕</button>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `).join('');
+    let html = '';
 
-    // Verwaltungsgruppe
+    if (editMode) {
+      html += `
+        <div class="d365qb-ribbon-edit-panel">
+          <div class="d365qb-ribbon-edit-hint">⠿ Ziehen zum Sortieren</div>
+          <div class="d365qb-ribbon-edit-body" id="d365qb-ribbon-edit-body">${mkEditHTML()}</div>
+        </div>`;
+    } else {
+      // Gruppen aufbauen
+      let sections = [], cur = { title: 'QuickBar', buttons: [] };
+      pinnedItems.forEach(it => {
+        if (it.type === 'group') {
+          if (cur.buttons.length) sections.push({ ...cur });
+          cur = { title: it.title, buttons: [] };
+        } else { cur.buttons.push(it); }
+      });
+      if (cur.buttons.length) sections.push(cur);
+
+      html += sections.map(sec => `
+        <div class="group button-group d365qb-ribbon-group">
+          <div class="group_header"><label class="group_title">${x(sec.title)}</label></div>
+          <div class="group_content layout-container layout-horizontal">
+            ${sec.buttons.map(b => `
+              <div class="d365qb-r-item">
+                <button class="button dynamicsButton d365qb-r-btn" data-pid="${b.id}"
+                  title="${b.tabLabel ? x(b.tabLabel)+': '+x(b.label) : x(b.label)}">
+                  <div class="button-container">
+                    <span class="button-label">${x(b.label)}</span>
+                    ${b.tabLabel ? `<span class="d365qb-r-badge">${x(b.tabLabel)}</span>` : ''}
+                  </div>
+                </button>
+                <button class="d365qb-r-rm" data-pid="${b.id}" title="Entfernen">✕</button>
+              </div>`).join('')}
+          </div>
+        </div>`).join('');
+    }
+
+    // Verwaltungsgruppe (immer rechts)
     html += `
-      <div class="group button-group d365qb-ribbon-group">
-        <div class="group_header"><label class="group_title">Verwaltung</label></div>
-        <div class="group_content">
-          <button class="button dynamicsButton d365qb-manage-btn" id="d365qb-ribbon-pinmode">
+      <div class="group button-group d365qb-ribbon-group d365qb-r-mgmt">
+        <div class="group_header"><label class="group_title">QuickBar</label></div>
+        <div class="group_content layout-container layout-vertical">
+          <button class="button dynamicsButton d365qb-manage" id="d365qb-r-edit">
+            <div class="button-container">
+              <span class="button-label">${editMode ? '✓ Fertig' : '✏️ Bearbeiten'}</span>
+            </div>
+          </button>
+          ${editMode ? `
+          <button class="button dynamicsButton d365qb-manage" id="d365qb-r-addgrp">
+            <div class="button-container"><span class="button-label">＋ Gruppe</span></div>
+          </button>` : ''}
+          <button class="button dynamicsButton d365qb-manage" id="d365qb-r-pin">
             <div class="button-container">
               <span class="button-label">${pinMode ? '🔴 Pin-Modus' : '📌 Pin-Modus'}</span>
             </div>
@@ -520,101 +495,180 @@
         </div>
       </div>`;
 
-    tabContent.innerHTML = html;
-    appBar.parentElement.insertBefore(tabContent, appBar.nextSibling);
+    tc.innerHTML = html;
+    appBar.parentElement.insertBefore(tc, appBar.nextSibling);
 
-    // Events
-    tabContent.querySelectorAll('.d365qb-ribbon-pinned-btn').forEach(btn => {
-      const item = pinnedItems.find(i => i.id === btn.getAttribute('data-pin-id'));
-      btn.addEventListener('click', () => { if (item) triggerOriginalButton(item); });
-    });
-    tabContent.querySelectorAll('.d365qb-ribbon-remove').forEach(btn => {
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        pinnedItems = pinnedItems.filter(i => i.id !== btn.getAttribute('data-pin-id'));
-        savePins(); renderUI();
+    // Events: Edit-Modus
+    if (editMode) {
+      const eb = tc.querySelector('#d365qb-ribbon-edit-body');
+      if (eb) { bindDrag(eb); bindGroupEdit(eb); bindEditRemove(eb); }
+      tc.querySelector('#d365qb-r-addgrp')?.addEventListener('click', () => {
+        pinnedItems.push({ type: 'group', id: `g_${Date.now()}`, title: 'Neue Gruppe' });
+        stSet({ [pageKey()]: pinnedItems });
+        editMode = true; renderUI(); reopenRibbon();
       });
-    });
-    tabContent.querySelector('#d365qb-ribbon-pinmode')?.addEventListener('click', () => {
-      pinMode = !pinMode;
-      updatePinMode();
-      tabContent.querySelector('#d365qb-ribbon-pinmode .button-label').textContent =
-        pinMode ? '🔴 Pin-Modus' : '📌 Pin-Modus';
+    } else {
+      // Events: Normal
+      tc.querySelectorAll('.d365qb-r-btn').forEach(btn => {
+        const item = pinnedItems.find(i => i.id === btn.dataset.pid);
+        btn.addEventListener('click', () => { if (item) fireBtn(item); });
+      });
+      tc.querySelectorAll('.d365qb-r-rm').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          pinnedItems = pinnedItems.filter(i => i.id !== btn.dataset.pid);
+          stSet({ [pageKey()]: pinnedItems });
+          renderUI(); reopenRibbon();
+        });
+      });
+    }
+
+    // Edit-Toggle
+    tc.querySelector('#d365qb-r-edit')?.addEventListener('click', () => {
+      editMode = !editMode; renderUI(); reopenRibbon();
     });
 
-    // Tab-Sichtbarkeit
-    let visible = false;
+    // Pin-Modus
+    tc.querySelector('#d365qb-r-pin')?.addEventListener('click', () => {
+      pinMode = !pinMode; applyPinMode();
+      const lbl = tc.querySelector('#d365qb-r-pin .button-label');
+      if (lbl) lbl.textContent = pinMode ? '🔴 Pin-Modus' : '📌 Pin-Modus';
+    });
+
+    // Tab öffnen/schliessen
     tabBtn.addEventListener('click', () => {
-      visible = !visible;
-      tabContent.style.display = visible ? 'flex' : 'none';
-      tabBtn.classList.toggle('d365qb-tab-active', visible);
+      ribbonVisible = !ribbonVisible;
+      tc.style.display = ribbonVisible ? 'flex' : 'none';
+      tabBtn.classList.toggle('d365qb-r-active', ribbonVisible);
     });
-    tabContent.style.display = 'none';
+    // Zustand wiederherstellen
+    tc.style.display = ribbonVisible ? 'flex' : 'none';
+    tabBtn.classList.toggle('d365qb-r-active', ribbonVisible);
   }
 
-  function buildRibbonSections() {
-    const sections = [];
-    let current = { title: 'QuickBar', buttons: [] };
-    pinnedItems.forEach(item => {
-      if (item.type === 'group') {
-        if (current.buttons.length) sections.push({ ...current });
-        current = { title: item.title, buttons: [] };
-      } else {
-        current.buttons.push(item);
-      }
+  function reopenRibbon() {
+    if (!ribbonVisible) return;
+    requestAnimationFrame(() => {
+      const tc  = document.getElementById('d365qb-ribbon-tab');
+      const btn = document.getElementById('d365qb-ribbon-btn');
+      if (tc)  tc.style.display = 'flex';
+      if (btn) btn.classList.add('d365qb-r-active');
     });
-    if (current.buttons.length) sections.push(current);
-    return sections;
   }
 
-  // ─── Original-Button auslösen ─────────────────────────────────────────────
-  function triggerOriginalButton(pin) {
+  // ── Original-Button auslösen ───────────────────────────────────────────────
+  function fireBtn(pin) {
     let btn = document.getElementById(pin.buttonId);
-    if (!btn && pin.controlName) {
-      btn = document.querySelector(`[data-dyn-controlname="${pin.controlName}"]`);
-    }
-    if (!btn) {
-      showToast(`⚠️ "${pin.label}" nicht auf dieser Seite gefunden.`);
-      return;
-    }
+    if (!btn && pin.controlName) btn = document.querySelector(`[data-dyn-controlname="${pin.controlName}"]`);
+    if (!btn) { toast(`⚠️ "${pin.label}" nicht auf dieser Seite gefunden.`); return; }
 
-    // Wenn der Button in einem ausgeblendeten Flyout liegt: Tab zuerst öffnen
     const flyout = btn.closest('.appBar-flyout');
     if (flyout) {
-      const cs = getComputedStyle(flyout);
-      const hidden = cs.display === 'none' || flyout.style.cssText.includes('display: none');
+      const hidden = getComputedStyle(flyout).display === 'none';
       if (hidden) {
-        // Fall 1: internes Flyout (.appBarTab > .appBar-flyout)
-        const appBarTab = flyout.closest('.appBarTab');
-        if (appBarTab) {
-          const header = appBarTab.querySelector(':scope > button.appBarTab-header');
-          if (header) { header.click(); setTimeout(() => btn.click(), 250); return; }
-        }
-        // Fall 2: externes Flyout (ID endet auf _flyout)
-        if (flyout.id) {
-          const tabEl = document.getElementById(flyout.id.replace(/_flyout$/, ''));
-          if (tabEl) {
-            const header = tabEl.querySelector('button.appBarTab-header');
-            if (header) { header.click(); setTimeout(() => btn.click(), 250); return; }
-          }
-        }
+        // Internes Flyout: Tab öffnen
+        const tabEl = flyout.closest('.appBarTab');
+        const hdr   = tabEl?.querySelector(':scope > button.appBarTab-header')
+                    || (flyout.id && document.getElementById(flyout.id.replace(/_flyout$/,''))?.querySelector('button.appBarTab-header'));
+        if (hdr) { hdr.click(); setTimeout(() => btn.click(), 250); return; }
       }
     }
     btn.click();
   }
 
-  // ─── Hilfsfunktionen ──────────────────────────────────────────────────────
-  function esc(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // ── Seiten-Import (umgeht Firefox-Popup-Fokus-Problem) ───────────────────
+  function triggerPageImport() {
+    // File-Input direkt in der D365-Seite erstellen, NICHT im Popup.
+    // Firefox schliesst den Extension-Popup wenn ein Datei-Dialog öffnet,
+    // weshalb change-Events im Popup-Kontext nie ankommen.
+    // Durch Erstellen des Inputs in der Seite bleibt der Kontext stabil.
+    const inp = document.createElement('input');
+    inp.type   = 'file';
+    inp.accept = '.json';
+    inp.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;';
+    document.body.appendChild(inp);
+
+    inp.addEventListener('change', () => {
+      const file = inp.files?.[0];
+      inp.remove();
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onerror = () => toast('❌ Datei konnte nicht gelesen werden');
+      reader.onload  = async evt => {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (!data || !Array.isArray(data.pinnedItems))
+            throw new Error('Ungültiges Format: pinnedItems fehlt');
+
+          pinnedItems = data.pinnedItems;
+          if (data.displayMode) displayMode = data.displayMode;
+          await stSet({ [pageKey()]: pinnedItems });
+          await stSet({ [SETTINGS_KEY]: { displayMode } });
+          renderUI();
+          const n = pinnedItems.filter(i => i.type === 'button').length;
+          toast(`✅ ${n} Button(s) importiert`);
+        } catch (err) {
+          toast(`❌ Import fehlgeschlagen: ${err.message}`);
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
+
+    inp.click();
   }
 
-  function showToast(msg) {
+  // ── Import via Content Script ────────────────────────────────────────────────
+  // Läuft in der Seite, nicht im Popup – damit der File-Dialog nach dem Popup-
+  // Schliessen (Firefox) weiterhin funktioniert und der change-Event ankommt.
+  function triggerImport() {
+    const inp = document.createElement('input');
+    inp.type   = 'file';
+    inp.accept = '.json';
+    inp.style.cssText = 'position:absolute;left:-9999px;width:0;height:0;';
+    document.body.appendChild(inp);
+
+    inp.addEventListener('change', async () => {
+      const file = inp.files?.[0];
+      document.body.removeChild(inp);
+      if (!file) return;
+
+      try {
+        const text = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload  = e => res(e.target.result);
+          r.onerror = () => rej(new Error('Lesefehler'));
+          r.readAsText(file, 'UTF-8');
+        });
+
+        const data = JSON.parse(text);
+        if (!data || !Array.isArray(data.pinnedItems))
+          throw new Error('Ungültiges Format');
+
+        pinnedItems = data.pinnedItems;
+        if (data.displayMode) displayMode = data.displayMode;
+        await stSet({ [pageKey()]: pinnedItems });
+        await stSet({ [SETTINGS_KEY]: { displayMode } });
+        renderUI();
+        toast(`✅ ${pinnedItems.filter(i=>i.type==='button').length} Button(s) importiert`);
+      } catch (e) {
+        toast(`❌ Import fehlgeschlagen: ${e.message}`);
+      }
+    });
+
+    inp.click();
+  }
+
+  // ── Hilfsfunktionen ────────────────────────────────────────────────────────
+  const x = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  function toast(msg) {
     let t = document.getElementById('d365qb-toast');
     if (!t) { t = document.createElement('div'); t.id = 'd365qb-toast'; document.body.appendChild(t); }
     t.textContent = msg;
-    t.classList.add('d365qb-toast-visible');
+    t.classList.add('d365qb-toast-on');
     clearTimeout(t._t);
-    t._t = setTimeout(() => t.classList.remove('d365qb-toast-visible'), 2800);
+    t._t = setTimeout(() => t.classList.remove('d365qb-toast-on'), 2800);
   }
 
 })();
