@@ -139,10 +139,13 @@
   // Import läuft im Kontext der D365-Seite (Content Script), nicht im Popup.
   // Grund: Firefox schliesst Popup beim Öffnen des Datei-Dialogs → change-Event
   // kommt nie an. Content Script erstellt den File-Input direkt in der Seite.
-  importBtn.addEventListener('click', async () => {
-    const resp = await send({ type: 'TRIGGER_IMPORT' });
-    if (!resp) showIE('❌ Kein D365-Tab aktiv – Seite neu laden', true);
-    else        showIE('📂 Datei auswählen… Ergebnis erscheint als Toast auf der Seite', false);
+  // Import öffnet eine eigene Extension-Seite.
+  // Grund: Firefox schliesst das Popup wenn ein File-Dialog öffnet,
+  // daher funktioniert der File-Input im Popup nicht zuverlässig.
+  importBtn.addEventListener('click', () => {
+    const url = _api.runtime.getURL('import.html');
+    if (isFF) _api.tabs.create({ url });
+    else      _api.tabs.create({ url });
   });
 
 

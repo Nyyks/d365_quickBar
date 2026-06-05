@@ -1,25 +1,31 @@
 /**
  * D365 QuickBar v2 – Popup Script
- * Chrome (MV3, chrome.*-Callbacks) und Firefox (MV2, browser.*-Promises)
+ * Kompatibel mit Chrome MV3 und Firefox MV3.
+ * In Extension-Popup-Seiten sind `browser` (Firefox) und `chrome` (Chrome) globale Variablen.
  */
 (function () {
   'use strict';
 
-  // ─── Browser-Wrapper ──────────────────────────────────────────────────────
-  // Firefox Extension Pages (popup): `browser` ist global (Promise-basiert)
-  // Chrome Extension Pages (popup): `chrome` ist global (Callback-basiert)
   /* global browser, chrome */
+
+  // ── Browser-API ─────────────────────────────────────────────────────────────
   const _api = (typeof browser !== 'undefined' && browser?.runtime) ? browser
              : (typeof chrome  !== 'undefined' && chrome?.runtime)  ? chrome
              : null;
-  const isFirefox = _api && (typeof browser !== 'undefined') && _api === browser;
 
+  if (!_api) { console.error('D365 QuickBar Popup: Keine Extension-API.'); return; }
+
+  const isFF = (_api === (typeof browser !== 'undefined' ? browser : null));
+
+  // Tabs-Query: immer Promise zurückgeben
   function queryTabs(opts) {
-    if (isFirefox) return _api.tabs.query(opts);
+    if (isFF) return _api.tabs.query(opts);
     return new Promise(r => _api.tabs.query(opts, r));
   }
+
+  // Nachricht an Content Script senden
   function sendMsg(tabId, msg) {
-    if (isFirefox) return _api.tabs.sendMessage(tabId, msg);
+    if (isFF) return _api.tabs.sendMessage(tabId, msg);
     return new Promise((res, rej) =>
       _api.tabs.sendMessage(tabId, msg, resp => {
         if (_api.runtime.lastError) rej(_api.runtime.lastError);
@@ -28,7 +34,7 @@
     );
   }
 
-  // ─── DOM ──────────────────────────────────────────────────────────────────
+  // ── DOM ─────────────────────────────────────────────────────────────────────
   const statusDiv   = document.getElementById('status');
   const statusIcon  = document.getElementById('status-icon');
   const statusText  = document.getElementById('status-text');
@@ -37,83 +43,73 @@
   const clearBtn    = document.getElementById('clear-btn');
   const exportBtn   = document.getElementById('export-btn');
   const importBtn   = document.getElementById('import-btn');
-  const importFile  = document.getElementById('import-file');
   const ieStatus    = document.getElementById('ie-status');
   const modeButtons = document.querySelectorAll('.mode');
 
   let currentTab = null;
-  let d365Active  = false;
 
-  // ─── Init ─────────────────────────────────────────────────────────────────
+  // ── Init ────────────────────────────────────────────────────────────────────
   async function init() {
+    // Aktiven Tab ermitteln
     let tabs;
-    try { tabs = await queryTabs({ active: true, currentWindow: true }); } catch (_) {}
-    currentTab = tabs?.[0] || null;
+    try { tabs = await queryTabs({ active: true, currentWindow: true }); }
+    catch (_) { /* Ignorieren */ }
+    currentTab = tabs?.[0] ?? null;
 
-    // Schritt 1: URL-Prüfung (nur wenn Tab-URL verfügbar)
-    if (currentTab?.url) {
-      d365Active = currentTab.url.includes('.dynamics.com');
+    if (!currentTab) {
+      setStatus('⚠️', 'Kein Tab gefunden', true);
+      disableAll(); return;
     }
 
-    // Schritt 2: Content-Script kontaktieren
-    // Wenn das Script antwortet, ist D365 definitiv aktiv.
-    // Wenn nicht (Fehler), zeigen wir "neu laden" NUR wenn URL-Check positiv war.
-    if (currentTab) {
-      try {
-        const state = await sendMsg(currentTab.id, { type: 'GET_STATE' });
-        if (state) {
-          d365Active = true; // Script hat geantwortet → sicher D365
-          updateMode(state.displayMode);
-          pinToggle.checked = state.pinMode;
-          pinCount.textContent = state.pinnedCount;
-          setStatus('✅', 'Dynamics 365 erkannt', false);
-        }
-      } catch (_) {
-        if (d365Active) {
-          // URL zeigt D365, aber Script antwortet nicht → Seite neu laden
-          setStatus('🔄', 'Seite neu laden, um QuickBar zu aktivieren', true);
-        } else {
-          setStatus('⚠️', 'Keine D365-Seite erkannt', true);
-        }
-        disableControls();
-        return;
+    // Schnell-Check via URL (nur wenn Tabs-Permission URL liefert)
+    const urlOk = currentTab.url?.includes('.dynamics.com') ?? false;
+
+    // Content Script kontaktieren – wenn es antwortet, ist D365 bestätigt
+    try {
+      const state = await sendMsg(currentTab.id, { type: 'GET_STATE' });
+      if (state) {
+        setStatus('✅', 'Dynamics 365 erkannt', false);
+        setMode(state.displayMode);
+        pinToggle.checked    = state.pinMode;
+        pinCount.textContent = state.pinnedCount;
+        return; // Erfolgreich
       }
+    } catch (_) { /* Content Script nicht erreichbar */ }
+
+    // Content Script hat nicht geantwortet
+    if (urlOk) {
+      setStatus('🔄', 'Seite neu laden, um QuickBar zu aktivieren', true);
     } else {
-      setStatus('⚠️', 'Kein aktiver Tab gefunden', true);
-      disableControls();
-      return;
+      setStatus('⚠️', 'Keine D365-Seite erkannt', true);
     }
+    disableAll();
   }
 
   function setStatus(icon, text, warn) {
     statusIcon.textContent = icon;
     statusText.textContent = text;
-    statusDiv.classList.toggle('warn', !!warn);
+    statusDiv.classList.toggle('warn', warn);
   }
 
-  function updateMode(mode) {
+  function setMode(mode) {
     modeButtons.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   }
 
-  function disableControls() {
-    pinToggle.disabled = true;
-    clearBtn.disabled  = true;
-    exportBtn.disabled = true;
-    importBtn.disabled = true;
+  function disableAll() {
+    [pinToggle, clearBtn, exportBtn].forEach(el => el.disabled = true);
+    if (importBtn) { importBtn.style.opacity = '0.5'; importBtn.style.pointerEvents = 'none'; }
     modeButtons.forEach(b => { b.style.opacity = '.5'; b.style.pointerEvents = 'none'; });
   }
 
-  // ─── Events ───────────────────────────────────────────────────────────────
-  modeButtons.forEach(btn => {
-    btn.addEventListener('click', async () => {
-      updateMode(btn.dataset.mode);
-      await send({ type: 'SET_DISPLAY_MODE', mode: btn.dataset.mode });
-    });
-  });
+  // ── Events ──────────────────────────────────────────────────────────────────
+  modeButtons.forEach(btn => btn.addEventListener('click', async () => {
+    setMode(btn.dataset.mode);
+    await send({ type: 'SET_DISPLAY_MODE', mode: btn.dataset.mode });
+  }));
 
-  pinToggle.addEventListener('change', async () => {
-    await send({ type: 'SET_PIN_MODE', enabled: pinToggle.checked });
-  });
+  pinToggle.addEventListener('change', async () =>
+    send({ type: 'SET_PIN_MODE', enabled: pinToggle.checked })
+  );
 
   clearBtn.addEventListener('click', async () => {
     if (!confirm('Alle gepinnten Buttons für diese Seite löschen?')) return;
@@ -121,70 +117,50 @@
     pinCount.textContent = '0';
   });
 
-  // ─── Export ───────────────────────────────────────────────────────────────
+  // ── Export ──────────────────────────────────────────────────────────────────
   exportBtn.addEventListener('click', async () => {
     try {
       const data = await send({ type: 'EXPORT_PINS' });
-      if (!data) { showIEStatus('❌ Export fehlgeschlagen', true); return; }
+      if (!data) return showIE('❌ Export fehlgeschlagen', true);
 
-      const json = JSON.stringify(data, null, 2);
-      const date = new Date().toISOString().split('T')[0];
+      const json  = JSON.stringify(data, null, 2);
+      const date  = new Date().toISOString().split('T')[0];
       const fname = `d365-quickbar-${date}.json`;
-
-      // Download via Blob-URL (funktioniert in Extension-Popups)
-      const blob = new Blob([json], { type: 'application/json' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url; a.download = fname;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const blob  = new Blob([json], { type: 'application/json' });
+      const url   = URL.createObjectURL(blob);
+      const a     = Object.assign(document.createElement('a'), { href: url, download: fname });
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-      showIEStatus(`✅ Exportiert: ${fname}`, false);
-    } catch (e) {
-      showIEStatus('❌ Export fehlgeschlagen', true);
-    }
+      showIE(`✅ ${fname}`, false);
+    } catch (e) { showIE('❌ Export fehlgeschlagen', true); }
   });
 
-  // ─── Import ───────────────────────────────────────────────────────────────
-  importBtn.addEventListener('click', () => importFile.click());
-
-  importFile.addEventListener('change', async e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-
-      // Validierung
-      if (!Array.isArray(data.pinnedItems)) throw new Error('Ungültiges Format');
-
-      const resp = await send({ type: 'IMPORT_PINS', data });
-      if (resp?.ok) {
-        pinCount.textContent = data.pinnedItems.filter(i => i.type === 'button').length;
-        if (data.displayMode) updateMode(data.displayMode);
-        showIEStatus(`✅ ${data.pinnedItems.filter(i=>i.type==='button').length} Buttons importiert`, false);
-      } else {
-        showIEStatus('❌ Import fehlgeschlagen', true);
-      }
-    } catch (err) {
-      showIEStatus(`❌ Ungültige Datei: ${err.message}`, true);
-    }
-    e.target.value = '';
+  // ── Import ──────────────────────────────────────────────────────────────────
+  // Import läuft im Kontext der D365-Seite (Content Script), nicht im Popup.
+  // Grund: Firefox schliesst Popup beim Öffnen des Datei-Dialogs → change-Event
+  // kommt nie an. Content Script erstellt den File-Input direkt in der Seite.
+  // Import öffnet eine eigene Extension-Seite.
+  // Grund: Firefox schliesst das Popup wenn ein File-Dialog öffnet,
+  // daher funktioniert der File-Input im Popup nicht zuverlässig.
+  importBtn.addEventListener('click', () => {
+    const url = _api.runtime.getURL('import.html');
+    if (isFF) _api.tabs.create({ url });
+    else      _api.tabs.create({ url });
   });
 
-  // ─── Hilfsfunktionen ──────────────────────────────────────────────────────
+
+  // ── Hilfsfunktionen ─────────────────────────────────────────────────────────
   async function send(msg) {
     if (!currentTab) return null;
     try { return await sendMsg(currentTab.id, msg); }
     catch (e) { console.warn('D365 QuickBar:', e); return null; }
   }
 
-  function showIEStatus(msg, isErr) {
+  function showIE(msg, isErr) {
     ieStatus.textContent = msg;
-    ieStatus.className = isErr ? 'err' : '';
-    setTimeout(() => { ieStatus.textContent = ''; ieStatus.className = ''; }, 4000);
+    ieStatus.className   = isErr ? 'err' : '';
+    clearTimeout(ieStatus._t);
+    ieStatus._t = setTimeout(() => { ieStatus.textContent = ''; ieStatus.className = ''; }, 5000);
   }
 
   init();

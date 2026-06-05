@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>D365 QuickBar – Import</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #faf9f8; color: #201f1e;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff; border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.12);
+      padding: 32px 40px; max-width: 420px; width: 90%;
+      text-align: center;
+    }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 8px; color: #201f1e; }
+    p  { font-size: 13px; color: #605e5c; margin-bottom: 24px; line-height: 1.5; }
+
+    .file-label {
+      display: inline-block; padding: 10px 24px;
+      background: #0078d4; color: #fff;
+      border-radius: 4px; cursor: pointer;
+      font-size: 14px; font-weight: 600;
+      transition: background .15s;
+    }
+    .file-label:hover { background: #005a9e; }
+    input[type="file"] { display: none; }
+
+    #status {
+      margin-top: 20px; padding: 10px 16px;
+      border-radius: 4px; font-size: 13px;
+      display: none;
+    }
+    #status.ok  { background: #dff6dd; color: #107c10; display: block; }
+    #status.err { background: #fde7e9; color: #c4262e; display: block; }
+    #status.inf { background: #deecf9; color: #004578; display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">📥</div>
+    <h1>Konfiguration importieren</h1>
+    <p>Wähle eine exportierte <strong>.json</strong> Datei aus.<br>
+       Die Buttons werden in der aktuellen D365-Seite geladen.</p>
+
+    <label class="file-label">
+      📂 Datei auswählen
+      <input type="file" id="import-file" accept=".json">
+    </label>
+
+    <div id="status"></div>
+  </div>
+  <script src="import.js"></script>
+</body>
+</html>

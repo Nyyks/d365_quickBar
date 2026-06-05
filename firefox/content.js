@@ -114,11 +114,8 @@
           })();
           return true;
 
-        case 'TRIGGER_IMPORT':
-          // Import direkt in der D365-Seite ausführen (umgeht Firefox-Popup-Fokus-Problem)
-          triggerPageImport();
-          sendResponse({ ok: true });
-          return true;
+
+
 
         default:
           return true;

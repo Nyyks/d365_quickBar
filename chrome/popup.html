@@ -12,34 +12,19 @@
     .header-title { font-size: 15px; font-weight: 700; }
     .header-sub { font-size: 11px; opacity: .8; margin-top: 2px; }
 
-    .status {
-      margin: 10px 14px 0;
-      padding: 6px 10px;
-      background: #deecf9; border: 1px solid #0078d4; border-radius: 4px;
-      font-size: 12px; color: #004578;
-      display: flex; align-items: center; gap: 6px;
-    }
+    .status { margin: 10px 14px 0; padding: 6px 10px; background: #deecf9; border: 1px solid #0078d4; border-radius: 4px; font-size: 12px; color: #004578; display: flex; align-items: center; gap: 6px; }
     .status.warn { background: #fff4ce; border-color: #c8a600; color: #6a4b00; }
 
     .section { padding: 10px 14px; border-bottom: 1px solid #edebe9; }
     .section:last-child { border-bottom: none; }
-    .section-title {
-      font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: .06em; color: #605e5c; margin-bottom: 8px;
-    }
+    .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #605e5c; margin-bottom: 8px; }
 
-    /* Mode toggle */
     .modes { display: flex; gap: 6px; }
-    .mode {
-      flex: 1; padding: 7px 6px; border: 2px solid #d0d0d0; border-radius: 5px;
-      background: #fff; cursor: pointer; text-align: center; font-size: 12px; color: #605e5c;
-      transition: all .15s; font-family: inherit;
-    }
+    .mode { flex: 1; padding: 7px 6px; border: 2px solid #d0d0d0; border-radius: 5px; background: #fff; cursor: pointer; text-align: center; font-size: 12px; color: #605e5c; transition: all .15s; font-family: inherit; }
     .mode:hover { border-color: #0078d4; color: #0078d4; }
     .mode.active { border-color: #0078d4; background: #deecf9; color: #004578; font-weight: 600; }
     .mode-icon { font-size: 18px; display: block; margin-bottom: 3px; }
 
-    /* Toggle */
     .toggle-row { display: flex; align-items: center; justify-content: space-between; }
     .toggle-label { font-size: 13px; font-weight: 500; }
     .toggle-desc { font-size: 11px; color: #605e5c; margin-top: 1px; }
@@ -50,27 +35,15 @@
     .toggle input:checked + .slider { background: #0078d4; }
     .toggle input:checked + .slider::before { transform: translateX(18px); }
 
-    /* Buttons */
     .btn-row { display: flex; gap: 6px; }
-    .btn {
-      flex: 1; padding: 7px 10px; border-radius: 4px; border: none; cursor: pointer;
-      font-family: inherit; font-size: 12px; font-weight: 600;
-      display: flex; align-items: center; justify-content: center; gap: 5px;
-      transition: all .15s;
-    }
-    .btn-outline { background:#fff; color:#0078d4; border:1px solid #0078d4; }
-    .btn-outline:hover { background:#deecf9; }
-    .btn-danger { background:#fff; color:#c4262e; border:1px solid #c4262e; margin-top: 7px; width: 100%; }
+    .btn { flex: 1; padding: 7px 10px; border-radius: 4px; border: 1px solid #0078d4; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all .15s; background:#fff; color:#0078d4; }
+    .btn:hover { background:#deecf9; }
+    .btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; pointer-events: none; }
+    .btn-danger { color:#c4262e; border-color:#c4262e; margin-top: 7px; width: 100%; }
     .btn-danger:hover { background:#fde7e9; }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
 
-    .pin-chip {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 18px; height: 18px; background: #0078d4; color: #fff;
-      border-radius: 50%; font-size: 11px; font-weight: 700; margin-left: 4px;
-    }
+    .pin-chip { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: #0078d4; color: #fff; border-radius: 50%; font-size: 11px; font-weight: 700; margin-left: 4px; }
 
-    /* Import/Export status */
     #ie-status { font-size: 11px; min-height: 18px; margin-top: 6px; color: #107c10; }
     #ie-status.err { color: #c4262e; }
 
@@ -92,7 +65,6 @@
   <span id="status-text">Verbindung wird geprüft…</span>
 </div>
 
-<!-- Darstellungsmodus -->
 <div class="section">
   <div class="section-title">📐 Darstellungsmodus</div>
   <div class="modes">
@@ -101,7 +73,6 @@
   </div>
 </div>
 
-<!-- Pin-Modus -->
 <div class="section">
   <div class="section-title">📌 Pin-Modus</div>
   <div class="toggle-row">
@@ -116,27 +87,22 @@
   </div>
 </div>
 
-<!-- Pins -->
 <div class="section">
-  <div class="section-title">
-    🗂️ Angepinnte Buttons
-    <span class="pin-chip" id="pin-count">0</span>
-  </div>
+  <div class="section-title">🗂️ Angepinnte Buttons <span class="pin-chip" id="pin-count">0</span></div>
   <button class="btn btn-danger" id="clear-btn">🗑️ Alle Pins löschen</button>
 </div>
 
-<!-- Import / Export -->
 <div class="section">
   <div class="section-title">💾 Import / Export</div>
   <div class="btn-row">
-    <button class="btn btn-outline" id="export-btn">⬇️ Exportieren</button>
-    <button class="btn btn-outline" id="import-btn">⬆️ Importieren</button>
+    <button class="btn" id="export-btn">⬇️ Exportieren</button>
+    <!-- Label löst den File-Picker nativ aus – kein JS .click() nötig, funktioniert zuverlässig in Firefox -->
+    <button class="btn" id="import-btn">⬆️ Importieren</button>
   </div>
-  <input type="file" id="import-file" accept=".json" style="display:none">
   <div id="ie-status"></div>
 </div>
 
-<div class="footer">D365 QuickBar v2.1 · Bearbeitung in der Sidebar ✏️</div>
+<div class="footer">D365 QuickBar v2.2 · Bearbeitung in der Sidebar ✏️</div>
 
 <script src="popup.js"></script>
 </body>
