@@ -24,46 +24,13 @@ D365 QuickBar ermöglicht es, beliebige Ribbon-Buttons aus D365 anzupinnen und z
 
 ---
 
-## Projektstruktur
-
-```
-d365-quickbar/
-├── README.md               ← Diese Datei
-├── chrome/                 ← Chrome Extension (Manifest V3)
-│   ├── manifest.json
-│   ├── content.js
-│   ├── content.css
-│   ├── popup.html
-│   ├── popup.js
-│   └── icons/
-│       ├── icon16.png
-│       ├── icon48.png
-│       └── icon128.png
-└── firefox/                ← Firefox Extension (Manifest V2)
-    ├── manifest.json
-    ├── content.js
-    ├── content.css
-    ├── popup.html
-    ├── popup.js
-    └── icons/
-        ├── icon16.png
-        ├── icon48.png
-        └── icon128.png
-```
-
----
-
 ## Installation (Entwicklermodus)
 
-### Chrome
-1. `chrome://extensions/` öffnen
-2. "Entwicklermodus" aktivieren (oben rechts)
-3. "Entpackte Erweiterung laden" → Ordner `chrome/` auswählen
+### Chrome / Edge
+https://chromewebstore.google.com/detail/nmdldjbiaegghmgfaalolghgjippegea
 
 ### Firefox
-1. `about:debugging#/runtime/this-firefox` öffnen
-2. "Temporäre Erweiterung laden"
-3. Datei `firefox/manifest.json` auswählen
+https://addons.mozilla.org/en-US/firefox/addon/dynamics-time-tracker/
 
 ---
 
@@ -74,21 +41,3 @@ d365-quickbar/
 3. **Pin-Modus aktivieren**: Im Popup "Pin-Modus" einschalten
 4. Ribbon-Button im D365 hovern → 📌 erscheint → Klicken zum Anpinnen
 5. Pin-Modus deaktivieren → Buttons erscheinen in Sidebar oder QuickBar-Tab
-
----
-
-## Technische Details
-
-- **Manifest V3** (Chrome) / **Manifest V2** (Firefox)
-- Kommunikation via `chrome.storage.local` / `browser.storage.local`
-- Content Script injiziert sich auf `*.dynamics.com`-Seiten
-- Mutation Observer erkennt dynamisch geladene Ribbon-Inhalte
-- Kein externes Framework, reines Vanilla JS
-
----
-
-## Bekannte Einschränkungen
-
-- D365 lädt Ribbon-Inhalte dynamisch (per AJAX). Der Mutation Observer stellt sicher, dass neue Tabs erkannt werden.
-- Die geklonten Buttons rufen die originalen D365-Click-Handler auf (`click`-Event auf dem Original-Button).
-- Bei D365-Updates kann sich die HTML-Struktur ändern. Selektoren ggf. anpassen (`appBar-toolbar`, `.dynamicsButton`).
