@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>shot</title>
+  <!-- Generic browser frame around a scene. Usage: shot.html#sidebar | #pin | #ribbon | #edit | #popup | #import -->
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; width: 1280px; height: 800px; overflow: hidden; background: #dfe3e8; font-family: 'Segoe UI', system-ui, sans-serif; position: relative; }
+    .mdl { font-family: 'Segoe MDL2 Assets', 'Segoe Fluent Icons'; font-style: normal; }
+    .tabs { height: 36px; display: flex; align-items: flex-end; padding-left: 10px; gap: 2px; }
+    .tab { height: 30px; width: 250px; border-radius: 8px 8px 0 0; padding: 0 12px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #202124; }
+    .tab.on { background: #fff; }
+    .tab .fav { width: 14px; height: 14px; border-radius: 3px; background: #002050; flex-shrink: 0; }
+    .tab span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tab .mdl { font-size: 9px; color: #5f6368; }
+    .bar { height: 40px; background: #fff; display: flex; align-items: center; gap: 4px; padding: 0 10px; border-bottom: 1px solid #dadce0; }
+    .bar .ico { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #5f6368; font-size: 13px; }
+    .bar .ico.on { background: #e8eaed; }
+    .url { flex: 1; height: 30px; border-radius: 15px; background: #f1f3f4; display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 13px; color: #202124; margin: 0 8px; }
+    .url .mdl { font-size: 11px; color: #5f6368; }
+    .url .dim { color: #5f6368; }
+    iframe.page { border: 0; width: 1280px; height: 724px; display: block; background: #fff; }
+    iframe.popup { position: absolute; top: 72px; right: 50px; width: 286px; height: 512px; border: 0; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.28), 0 0 0 1px rgba(0,0,0,.06); background: #faf9f8; }
+  </style>
+</head>
+<body>
+  <div class="tabs">
+    <div class="tab on"><div class="fav" id="fav"></div><span id="tab-title"></span><i class="mdl">&#xE711;</i></div>
+    <div class="tab"><i class="mdl" style="font-size:12px">&#xE710;</i></div>
+  </div>
+  <div class="bar">
+    <div class="ico"><i class="mdl">&#xE72B;</i></div>
+    <div class="ico"><i class="mdl">&#xE72A;</i></div>
+    <div class="ico"><i class="mdl">&#xE72C;</i></div>
+    <div class="url"><i class="mdl">&#xE72E;</i><span id="url"></span></div>
+    <div class="ico"><i class="mdl">&#xEA86;</i></div>
+    <div class="ico" id="qb-ico"><img src="../../chrome/icons/icon48.png" width="20" height="20" alt=""></div>
+    <div class="ico"><i class="mdl">&#xE712;</i></div>
+  </div>
+  <script>
+    const scene = (location.hash || '#sidebar').slice(1);
+    const d365 = {
+      src: 'd365.html#' + scene,
+      title: 'All sales orders -- Finance and Operations',
+      url: 'contoso.operations.dynamics.com<span class="dim">/?cmp=USMF&amp;mi=SalesTableListPage</span>',
+    };
+    const cfg = scene === 'import'
+      ? { src: 'import-en.html', title: 'D365 QuickBar – Import', url: '<span class="dim">chrome-extension://nmdldjbiaegghmgfaalolghgjippegea/</span>import.html' }
+      : d365;
+
+    document.getElementById('tab-title').textContent = cfg.title;
+    document.getElementById('url').innerHTML = cfg.url;
+    if (scene === 'import') {
+      document.getElementById('fav').outerHTML = '<img src="../../chrome/icons/icon16.png" width="14" height="14" alt="">';
+    }
+
+    const page = document.createElement('iframe');
+    page.className = 'page';
+    page.src = cfg.src;
+    document.body.appendChild(page);
+
+    if (scene === 'popup') {
+      document.getElementById('qb-ico').classList.add('on');
+      const pop = document.createElement('iframe');
+      pop.className = 'popup';
+      pop.src = 'popup-en.html';
+      document.body.appendChild(pop);
+    }
+  </script>
+</body>
+</html>

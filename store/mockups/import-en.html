@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>D365 QuickBar – Import</title>
+  <!-- Styles copied from chrome/import.html -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #faf9f8; color: #201f1e;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff; border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.12);
+      padding: 32px 40px; max-width: 420px; width: 90%;
+      text-align: center;
+    }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 8px; color: #201f1e; }
+    p  { font-size: 13px; color: #605e5c; margin-bottom: 24px; line-height: 1.5; }
+    .file-label {
+      display: inline-block; padding: 10px 24px;
+      background: #0078d4; color: #fff;
+      border-radius: 4px; cursor: pointer;
+      font-size: 14px; font-weight: 600;
+    }
+    #status { margin-top: 20px; padding: 10px 16px; border-radius: 4px; font-size: 13px; }
+    #status.ok { background: #dff6dd; color: #107c10; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">📥</div>
+    <h1>Import configuration</h1>
+    <p>Select an exported <strong>.json</strong> file.<br>
+       The buttons will be loaded into the current D365 page.</p>
+    <label class="file-label">📂 Choose file</label>
+    <div id="status" class="ok">✅ 8 button(s) imported successfully! This page will close…</div>
+  </div>
+</body>
+</html>

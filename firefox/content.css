@@ -122,7 +122,7 @@ body.d365qb-pin-mode .d365qb-overlay { opacity: 1; pointer-events: auto; }
 .d365qb-drag:active { cursor: grabbing; }
 .d365qb-edit-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1px; }
 .d365qb-grp-inp {
-  flex: 1; border: none; background: transparent; font-family: inherit;
+  flex: 1; min-width: 0; border: none; background: transparent; font-family: inherit;
   font-size: 12px; font-weight: 700; color: var(--qb-dk); padding: 0; outline: none; cursor: text;
 }
 .d365qb-grp-inp:focus { border-bottom: 1px solid var(--qb-blue); }

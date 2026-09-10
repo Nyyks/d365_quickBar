@@ -1,0 +1,72 @@
+/* Mock Dynamics 365 F&O shell – only used to render store screenshots. */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; color: #201f1e; background: #fff; overflow: hidden; }
+.mdl { font-family: 'Segoe MDL2 Assets', 'Segoe Fluent Icons'; font-style: normal; font-weight: normal; line-height: 1; }
+
+/* Navigation bar */
+.nav { height: 48px; background: #002050; color: #fff; display: flex; align-items: center; padding-right: 12px; }
+.nav-waffle { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.nav-title { font-size: 15px; font-weight: 600; }
+.nav-spacer { flex: 1; }
+.nav-search { width: 300px; height: 30px; background: rgba(255,255,255,.12); border-radius: 2px; display: flex; align-items: center; gap: 10px; padding: 0 10px; color: rgba(255,255,255,.75); margin-right: 18px; }
+.nav-cmp { font-weight: 600; padding: 0 14px; }
+.nav-ico { width: 40px; text-align: center; font-size: 15px; }
+.nav-avatar { width: 30px; height: 30px; border-radius: 50%; background: #8764b8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-left: 6px; }
+
+.main { display: flex; height: calc(100% - 48px); }
+
+/* Left navigation rail */
+.rail { width: 48px; flex-shrink: 0; background: #faf9f8; border-right: 1px solid #e1dfdd; display: flex; flex-direction: column; }
+.rail i { height: 46px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #323130; }
+
+.page { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+
+/* Action pane */
+.appBar { background: #fff; border-bottom: 1px solid #e1dfdd; position: relative; }
+.appBar-toolbar { display: flex; align-items: stretch; height: 44px; padding: 0 6px; }
+.actionGroup { display: flex; align-items: stretch; border-right: 1px solid #e1dfdd; margin-right: 4px; padding-right: 4px; }
+.actionGroup .dynamicsButton { background: none; border: none; font: inherit; padding: 0 10px; color: #201f1e; }
+.actionGroup .button-container { display: flex; align-items: center; gap: 7px; }
+.actionGroup .mdl { color: #0078d4; font-size: 14px; }
+.appBarTab { display: flex; }
+.appBarTab-header { background: none; border: none; font: inherit; font-size: 13px; padding: 0 12px; color: #201f1e; cursor: pointer; }
+.appBarTab-header.open { background: #edebe9; font-weight: 600; }
+.ap-search { margin-left: 6px; display: flex; align-items: center; padding: 0 10px; color: #323130; font-size: 14px; }
+
+/* Ribbon flyout (open tab) */
+.appBar-flyout { position: absolute; left: 0; right: 0; top: 100%; display: flex; background: #fff; padding: 10px 6px 12px; border-top: 1px solid #edebe9; box-shadow: 0 8px 16px rgba(0,0,0,.14); z-index: 50; }
+.appBar-flyout .group { padding: 0 18px; border-right: 1px solid #edebe9; }
+.appBar-flyout .group:last-child { border-right: none; }
+.group_title { display: block; font-size: 12px; font-weight: 600; color: #605e5c; margin-bottom: 5px; }
+.appBar-flyout .group_content { display: flex; flex-direction: column; }
+.appBar-flyout .dynamicsButton { display: block; background: none; border: none; font: inherit; padding: 4px 4px; text-align: left; color: #201f1e; border-radius: 2px; }
+.appBar-flyout .dynamicsButton.hov { background: #deecf9; outline: 1px solid #0078d4; }
+.appBar-flyout .button-container { display: flex; align-items: center; gap: 8px; padding-right: 24px; }
+.appBar-flyout .mdl { color: #323130; font-size: 14px; width: 16px; }
+
+/* D365 native classes used by the QuickBar ribbon tab */
+.d365qb-ribbon-tc .group { padding: 2px 14px 6px; border-right: 1px solid #edebe9; }
+.d365qb-ribbon-tc .d365qb-r-mgmt { border-right: none; }
+.d365qb-ribbon-tc .layout-horizontal { display: flex; gap: 6px; align-items: flex-start; }
+.d365qb-ribbon-tc .layout-vertical { display: flex; flex-direction: column; }
+.d365qb-r-btn { background: none; border: 1px solid transparent; border-radius: 4px; font-size: 13px; color: #201f1e; }
+.d365qb-r-btn .button-container { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.d365qb-r-btn.hov { background: #f3f2f1; border-color: #e1dfdd; }
+
+/* List page */
+.content { flex: 1; padding: 14px 22px 0; overflow: hidden; }
+.pg-view { font-size: 12px; color: #605e5c; display: flex; align-items: center; gap: 6px; }
+.pg-title { font-size: 22px; font-weight: 600; margin: 2px 0 12px; }
+.filters { display: flex; gap: 10px; margin-bottom: 10px; }
+.filter-box { width: 220px; height: 30px; border: 1px solid #8a8886; border-radius: 2px; display: flex; align-items: center; gap: 8px; padding: 0 8px; color: #605e5c; }
+.filter-dd { height: 30px; border: 1px solid #c8c6c4; border-radius: 2px; display: flex; align-items: center; gap: 8px; padding: 0 10px; }
+.filter-dd b { font-weight: 600; }
+table.grid { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.grid th { font-size: 12px; font-weight: 600; color: #323130; text-align: left; padding: 8px; border-bottom: 1px solid #c8c6c4; white-space: nowrap; }
+.grid td { padding: 7px 8px; border-bottom: 1px solid #edebe9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grid td.num, .grid th.num { text-align: right; }
+.grid tr.sel td { background: #deecf9; }
+.grid a { color: #0078d4; text-decoration: none; }
+.chk { display: inline-block; width: 14px; height: 14px; border: 1px solid #605e5c; border-radius: 2px; vertical-align: middle; }
+tr.sel .chk { background: #0078d4; border-color: #0078d4; }

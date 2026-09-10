@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>D365 QuickBar</title>
+  <!-- Styles copied from chrome/popup.html -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; width: 286px; background: #faf9f8; color: #201f1e; }
+
+    .header { background: linear-gradient(135deg,#0078d4,#005a9e); color:#fff; padding: 13px 16px; display:flex; align-items:center; gap:10px; }
+    .header-icon { font-size: 22px; }
+    .header-title { font-size: 15px; font-weight: 700; }
+    .header-sub { font-size: 11px; opacity: .8; margin-top: 2px; }
+
+    .status { margin: 10px 14px 0; padding: 6px 10px; background: #deecf9; border: 1px solid #0078d4; border-radius: 4px; font-size: 12px; color: #004578; display: flex; align-items: center; gap: 6px; }
+
+    .section { padding: 10px 14px; border-bottom: 1px solid #edebe9; }
+    .section:last-child { border-bottom: none; }
+    .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #605e5c; margin-bottom: 8px; }
+
+    .modes { display: flex; gap: 6px; }
+    .mode { flex: 1; padding: 7px 6px; border: 2px solid #d0d0d0; border-radius: 5px; background: #fff; cursor: pointer; text-align: center; font-size: 12px; color: #605e5c; transition: all .15s; font-family: inherit; }
+    .mode.active { border-color: #0078d4; background: #deecf9; color: #004578; font-weight: 600; }
+    .mode-icon { font-size: 18px; display: block; margin-bottom: 3px; }
+
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .toggle-label { font-size: 13px; font-weight: 500; }
+    .toggle-desc { font-size: 11px; color: #605e5c; margin-top: 1px; }
+    .toggle { position:relative; width:38px; height:20px; flex-shrink:0; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; inset:0; background:#d0d0d0; border-radius:20px; cursor:pointer; }
+    .slider::before { content:''; position:absolute; width:14px; height:14px; left:3px; top:3px; background:#fff; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+    .toggle input:checked + .slider { background: #0078d4; }
+    .toggle input:checked + .slider::before { transform: translateX(18px); }
+
+    .btn-row { display: flex; gap: 6px; }
+    .btn { flex: 1; padding: 7px 10px; border-radius: 4px; border: 1px solid #0078d4; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 5px; background:#fff; color:#0078d4; }
+    .btn-danger { color:#c4262e; border-color:#c4262e; margin-top: 7px; width: 100%; }
+
+    .pin-chip { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: #0078d4; color: #fff; border-radius: 50%; font-size: 11px; font-weight: 700; margin-left: 4px; }
+
+    #ie-status { font-size: 11px; min-height: 18px; margin-top: 6px; color: #107c10; }
+
+    .footer { padding: 8px 14px; font-size: 10px; color: #a19f9d; text-align: center; border-top: 1px solid #edebe9; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-icon">⚡</span>
+  <div>
+    <div class="header-title">D365 QuickBar</div>
+    <div class="header-sub">Dynamics 365 F&amp;O quick access</div>
+  </div>
+</div>
+
+<div class="status">
+  <span>✅</span>
+  <span>Dynamics 365 detected</span>
+</div>
+
+<div class="section">
+  <div class="section-title">📐 Display mode</div>
+  <div class="modes">
+    <button class="mode active"><span class="mode-icon">◧</span>Sidebar</button>
+    <button class="mode"><span class="mode-icon">☰</span>Ribbon tab</button>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">📌 Pin mode</div>
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">Enable pin mode</div>
+      <div class="toggle-desc">Click 📌 on ribbon buttons to pin them</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox">
+      <span class="slider"></span>
+    </label>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">🗂️ Pinned buttons <span class="pin-chip">8</span></div>
+  <button class="btn btn-danger">🗑️ Clear all pins</button>
+</div>
+
+<div class="section">
+  <div class="section-title">💾 Import / Export</div>
+  <div class="btn-row">
+    <button class="btn">⬇️ Export</button>
+    <button class="btn">⬆️ Import</button>
+  </div>
+  <div id="ie-status">✅ d365-quickbar-2026-09-10.json</div>
+</div>
+
+<div class="footer">
+  D365 QuickBar v2.4<br>
+  <a style="color:#9932cc;text-decoration:none;font-weight:600;">Buy me a Coffee ☕</a>
+</div>
+
+</body>
+</html>

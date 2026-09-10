@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>promo</title>
+  <!-- Promo tiles. Usage: promo.html#small (440x280) | promo.html#marquee (1400x560) -->
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    [hidden] { display: none !important; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; color: #fff; overflow: hidden; background: #002050; }
+    #small, #marquee { background: linear-gradient(135deg, #0078d4 0%, #004e8c 60%, #002050 100%); }
+    .logo { background: #fff; border-radius: 22%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,.25); flex-shrink: 0; }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); border-radius: 999px; padding: 4px 12px; }
+
+    #small { width: 440px; height: 280px; padding: 30px 30px; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
+    #small .top { display: flex; align-items: center; gap: 18px; }
+    #small .logo { width: 84px; height: 84px; }
+    #small h1 { font-size: 30px; font-weight: 700; line-height: 1.1; }
+    #small p { font-size: 14px; opacity: .9; margin-top: 6px; line-height: 1.35; }
+    #small .chip { font-size: 12px; }
+
+    #marquee { width: 1400px; height: 560px; display: flex; align-items: center; padding: 0 0 0 80px; gap: 60px; }
+    #marquee .txt { width: 500px; flex-shrink: 0; }
+    #marquee .logo { width: 96px; height: 96px; margin-bottom: 28px; }
+    #marquee h1 { font-size: 54px; font-weight: 700; line-height: 1.05; }
+    #marquee p { font-size: 22px; opacity: .92; margin: 14px 0 26px; line-height: 1.35; }
+    #marquee .chip { font-size: 15px; padding: 6px 16px; }
+    #marquee .shot { flex: 1; height: 440px; border-radius: 12px 0 0 12px; overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,.35); background: #fff; }
+    #marquee .shot img { display: block; width: 1280px; height: 800px; max-width: none; transform: translate(-440px, -76px); }
+  </style>
+</head>
+<body>
+  <div id="small" hidden>
+    <div class="top">
+      <div class="logo"><img src="../../chrome/icons/icon128.png" width="64" height="64" alt=""></div>
+      <div>
+        <h1>D365 QuickBar</h1>
+        <p>Your most-used Dynamics 365 F&amp;O buttons, one click away.</p>
+      </div>
+    </div>
+    <div class="chips"><span class="chip">📌 Pin any button</span><span class="chip">◧ Sidebar</span><span class="chip">☰ Ribbon tab</span></div>
+  </div>
+
+  <div id="marquee" hidden>
+    <div class="txt">
+      <div class="logo"><img src="../../chrome/icons/icon128.png" width="72" height="72" alt=""></div>
+      <h1>D365 QuickBar</h1>
+      <p>Pin any Dynamics 365 Finance &amp; Operations ribbon button to a sidebar or your own QuickBar tab — no more hunting through ribbon tabs.</p>
+      <div class="chips"><span class="chip">📌 Pin any button</span><span class="chip">🗂️ Groups</span><span class="chip">💾 Import / Export</span></div>
+    </div>
+    <div class="shot"><img src="../screenshots/01-sidebar.png" alt=""></div>
+  </div>
+
+  <script>
+    const id = (location.hash || '#small').slice(1);
+    document.getElementById(id).hidden = false;
+  </script>
+</body>
+</html>
